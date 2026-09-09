@@ -13,17 +13,35 @@ export default async function OCPage({ params }: { params: { id: string } }) {
   return (
     <div>
       <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border)", paddingBottom: 12, marginBottom: 12 }}>
-          <div>
-            <p style={{ margin: 0, fontWeight: 500, fontSize: 16 }}>Orden de compra</p>
-            <p style={{ margin: "2px 0 0", fontFamily: "monospace", fontSize: 13, color: "var(--muted)" }}>
-              OC-{pedido.numero.replace("PED-", "")} · de {pedido.numero}
-            </p>
-          </div>
-          <button className="secondary no-print" onClick={undefined} style={{ display: "none" }} />
+        <div
+          style={{
+            borderBottom: "1px solid var(--border)",
+            paddingBottom: 12,
+            marginBottom: 12,
+          }}
+        >
+          <p style={{ margin: 0, fontWeight: 500, fontSize: 16 }}>Orden de compra</p>
+          <p
+            style={{
+              margin: "2px 0 0",
+              fontFamily: "monospace",
+              fontSize: 13,
+              color: "var(--muted)",
+            }}
+          >
+            OC-{pedido.numero.replace("PED-", "")} · de {pedido.numero}
+          </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13, marginBottom: 16 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 8,
+            fontSize: 13,
+            marginBottom: 16,
+          }}
+        >
           <p style={{ margin: 0 }}>
             <span style={{ color: "var(--muted)" }}>Fecha:</span>{" "}
             {new Date(pedido.fecha).toLocaleDateString("es-AR")}
@@ -32,7 +50,8 @@ export default async function OCPage({ params }: { params: { id: string } }) {
             <span style={{ color: "var(--muted)" }}>Área:</span> {pedido.area}
           </p>
           <p style={{ margin: 0 }}>
-            <span style={{ color: "var(--muted)" }}>Solicitante:</span> {pedido.perfiles?.nombre}
+            <span style={{ color: "var(--muted)" }}>Solicitante:</span>{" "}
+            {pedido.perfiles?.nombre}
           </p>
           <p style={{ margin: 0 }}>
             <span style={{ color: "var(--muted)" }}>Estado:</span>{" "}
@@ -59,11 +78,34 @@ export default async function OCPage({ params }: { params: { id: string } }) {
           </tbody>
         </table>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 40 }}>
-          <div style={{ borderTop: "1px solid var(--muted)", paddingTop: 6, fontSize: 12, color: "var(--muted)", textAlign: "center" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            marginTop: 40,
+          }}
+        >
+          <div
+            style={{
+              borderTop: "1px solid var(--muted)",
+              paddingTop: 6,
+              fontSize: 12,
+              color: "var(--muted)",
+              textAlign: "center",
+            }}
+          >
             Firma solicitante
           </div>
-          <div style={{ borderTop: "1px solid var(--muted)", paddingTop: 6, fontSize: 12, color: "var(--muted)", textAlign: "center" }}>
+          <div
+            style={{
+              borderTop: "1px solid var(--muted)",
+              paddingTop: 6,
+              fontSize: 12,
+              color: "var(--muted)",
+              textAlign: "center",
+            }}
+          >
             Firma aprobación
           </div>
         </div>
