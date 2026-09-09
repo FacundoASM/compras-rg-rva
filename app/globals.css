@@ -1,0 +1,83 @@
+:root {
+  --ink: #16202a;
+  --muted: #5f5e5a;
+  --border: #d3d1c7;
+  --bg: #f5f6f4;
+  --success-bg: #eaf3de;
+  --success-txt: #27500a;
+  --warning-bg: #faeeda;
+  --warning-txt: #854f0b;
+  --danger-bg: #fcebeb;
+  --danger-txt: #791f1f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: white;
+}
+
+.brand { font-weight: 600; }
+
+.nav { display: flex; gap: 16px; align-items: center; }
+.nav a { color: var(--ink); text-decoration: none; font-size: 14px; }
+.nav a:hover { text-decoration: underline; }
+
+.perfil-chip {
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.content { max-width: 860px; margin: 0 auto; padding: 24px; }
+
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+input, select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+button {
+  background: var(--ink);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+button.secondary { background: white; color: var(--ink); border: 1px solid var(--border); }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; }
+
+.badge { font-size: 12px; padding: 2px 10px; border-radius: 6px; }
+.badge.pendiente { background: var(--warning-bg); color: var(--warning-txt); }
+.badge.aprobado { background: var(--success-bg); color: var(--success-txt); }
+.badge.rechazado { background: var(--danger-bg); color: var(--danger-txt); }
