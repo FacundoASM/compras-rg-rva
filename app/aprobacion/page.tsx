@@ -1,63 +1,54 @@
 import { createClient, getPerfilActual } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { resolverPedido, guardarCostoItem } from "@/app/acciones";
+import AccionConMotivo from "@/app/components/AccionConMotivo";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-async function resolverPedido(formData: FormData) {
-  "use server";
-  const id = formData.get("id") as string;
-  const decision = formData.get("decision") as "aprobado" | "rechazado";
-  const supabase = createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  await supabase
-    .from("pedidos")
-    .update({
-      estado: decision,
-      aprobado_por: auth.user!.id,
-      fecha_aprobacion: new Date().toISOString(),
-    })
-    .eq("id", id);
-  revalidatePath("/aprobacion");
-  revalidatePath("/mis-pedidos");
-}
+const ORDEN_ESTADOS = ["pendiente", "aprobado", "entregado"];
 
 export default async function AprobacionPage() {
   const perfil = await getPerfilActual();
-  const puedeAprobar =
+  const esAprobador =
     perfil?.rol === "aprobador" || perfil?.rol === "superusuario";
+  const esCompras = perfil?.rol === "compras" || perfil?.rol === "superusuario";
 
   const supabase = createClient();
   const { data: pedidos } = await supabase
     .from("pedidos")
-    .select("*, perfiles!pedidos_solicitante_id_fkey(nombre), items_pedido(*)")
+    .select(
+      "*, perfiles!pedidos_solicitante_id_fkey(nombre), items_pedido(*, subcategorias(nombre, categorias(nombre)))"
+    )
     .order("creado_en", { ascending: false });
 
-  const pendientes = (pedidos ?? []).filter((p: any) => p.estado === "pendiente");
-  const resueltos = (pedidos ?? []).filter((p: any) => p.estado !== "pendiente");
+  const activos = (pedidos ?? []).filter((p: any) =>
+    ORDEN_ESTADOS.slice(0, 2).includes(p.estado)
+  );
+  const cerrados = (pedidos ?? []).filter(
+    (p: any) => !ORDEN_ESTADOS.slice(0, 2).includes(p.estado)
+  );
 
   return (
     <div>
-      <h2>{puedeAprobar ? "Pedidos pendientes" : "Pedidos"}</h2>
-
-      {pendientes.length === 0 ? (
+      <h2>Pedidos en curso</h2>
+      {activos.length === 0 ? (
         <div className="card">
-          <p className="vacio">No hay pedidos pendientes.</p>
+          <p className="vacio">No hay pedidos en curso.</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {pendientes.map((p: any) => (
-            <TarjetaPedido key={p.id} pedido={p} puedeAprobar={puedeAprobar} />
+          {activos.map((p: any) => (
+            <Tarjeta key={p.id} p={p} />
           ))}
         </div>
       )}
 
-      {resueltos.length > 0 && (
+      {cerrados.length > 0 && (
         <>
-          <h2 style={{ marginTop: 36 }}>Resueltos</h2>
+          <h2 style={{ marginTop: 36 }}>Cerrados</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {resueltos.map((p: any) => (
-              <TarjetaPedido key={p.id} pedido={p} puedeAprobar={false} />
+            {cerrados.map((p: any) => (
+              <Tarjeta key={p.id} p={p} soloLectura />
             ))}
           </div>
         </>
@@ -65,29 +56,21 @@ export default async function AprobacionPage() {
     </div>
   );
 
-  function TarjetaPedido({
-    pedido: p,
-    puedeAprobar,
-  }: {
-    pedido: any;
-    puedeAprobar: boolean;
-  }) {
-    const total = p.items_pedido.reduce(
-      (acc: number, it: any) => acc + Number(it.cantidad),
+  function Tarjeta({ p, soloLectura }: { p: any; soloLectura?: boolean }) {
+    const unidades = p.items_pedido.reduce(
+      (a: number, it: any) => a + Number(it.cantidad),
       0
     );
+    const total = p.items_pedido.reduce(
+      (a: number, it: any) =>
+        a + Number(it.costo_unitario ?? 0) * Number(it.cantidad),
+      0
+    );
+    const cargarCostos = esCompras && p.estado === "aprobado";
 
     return (
       <div className="card">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 12,
-            marginBottom: 14,
-          }}
-        >
+        <div className="fila-titulo">
           <div>
             <p style={{ margin: 0, fontWeight: 600 }}>
               {p.numero} <span className={`badge ${p.estado}`}>{p.estado}</span>
@@ -95,21 +78,38 @@ export default async function AprobacionPage() {
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
               {p.area} · {p.perfiles?.nombre} ·{" "}
               {new Date(p.fecha).toLocaleDateString("es-AR")} ·{" "}
-              {p.items_pedido.length} ítem(s), {total} unidad(es)
+              {p.items_pedido.length} ítem(s), {unidades} unidad(es)
+              {total > 0 && ` · $${total.toLocaleString("es-AR")}`}
             </p>
           </div>
-          {p.estado === "aprobado" && (
+          {(p.estado === "aprobado" || p.estado === "entregado") && (
             <Link href={`/oc/${p.id}`}>Ver orden de compra</Link>
           )}
         </div>
 
+        {p.motivo_resolucion && (
+          <div
+            className={`nota-motivo ${
+              p.estado === "rechazado" || p.estado === "cancelado" ? "negativa" : ""
+            }`}
+          >
+            <strong>Motivo:</strong> {p.motivo_resolucion}
+          </div>
+        )}
+
         <table>
           <thead>
             <tr>
-              <th style={{ width: 32 }}>#</th>
+              <th style={{ width: 28 }}>#</th>
               <th>Descripción</th>
-              <th style={{ width: 70, textAlign: "right" }}>Cant.</th>
-              <th style={{ width: "35%" }}>Observaciones</th>
+              <th style={{ width: "22%" }}>Categoría</th>
+              <th style={{ width: 60, textAlign: "right" }}>Cant.</th>
+              <th style={{ width: "20%" }}>Observaciones</th>
+              {(cargarCostos || total > 0) && (
+                <th style={{ width: cargarCostos ? 260 : 140 }}>
+                  Costo y proveedor
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -117,31 +117,89 @@ export default async function AprobacionPage() {
               <tr key={it.id}>
                 <td style={{ color: "var(--muted)" }}>{i + 1}</td>
                 <td>{it.descripcion}</td>
-                <td style={{ textAlign: "right" }}>{it.cantidad}</td>
-                <td style={{ color: "var(--muted)" }}>
-                  {it.observaciones || "—"}
+                <td style={{ color: "var(--muted)", fontSize: 13 }}>
+                  {it.subcategorias
+                    ? `${it.subcategorias.categorias?.nombre} › ${it.subcategorias.nombre}`
+                    : "Sin categoría"}
                 </td>
+                <td style={{ textAlign: "right" }}>{it.cantidad}</td>
+                <td style={{ color: "var(--muted)" }}>{it.observaciones || "—"}</td>
+                {cargarCostos ? (
+                  <td>
+                    <form action={guardarCostoItem} className="form-costo">
+                      <input type="hidden" name="item_id" value={it.id} />
+                      <input
+                        name="costo_unitario"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="$ unit."
+                        defaultValue={it.costo_unitario ?? ""}
+                      />
+                      <input
+                        name="proveedor"
+                        placeholder="Proveedor"
+                        defaultValue={it.proveedor ?? ""}
+                      />
+                      <button className="secondary">Guardar</button>
+                    </form>
+                  </td>
+                ) : total > 0 ? (
+                  <td style={{ fontSize: 13 }}>
+                    {it.costo_unitario
+                      ? `$${Number(it.costo_unitario).toLocaleString("es-AR")}`
+                      : "—"}
+                    {it.proveedor && (
+                      <>
+                        <br />
+                        <span style={{ color: "var(--muted)" }}>{it.proveedor}</span>
+                      </>
+                    )}
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
         </table>
 
-        {puedeAprobar && (
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <form action={resolverPedido}>
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="decision" value="aprobado" />
-              <button type="submit" className="aprobar">
-                Aprobar pedido
-              </button>
-            </form>
-            <form action={resolverPedido}>
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="decision" value="rechazado" />
-              <button type="submit" className="rechazar">
-                Rechazar
-              </button>
-            </form>
+        {!soloLectura && (
+          <div className="acciones">
+            {p.estado === "pendiente" && esAprobador && (
+              <>
+                <form action={resolverPedido}>
+                  <input type="hidden" name="id" value={p.id} />
+                  <input type="hidden" name="decision" value="aprobado" />
+                  <button className="aprobar">Aprobar pedido</button>
+                </form>
+                <AccionConMotivo
+                  accion={resolverPedido}
+                  pedidoId={p.id}
+                  decision="rechazado"
+                  etiqueta="Rechazar"
+                  clase="rechazar"
+                  titulo="¿Por qué rechazás el pedido?"
+                />
+              </>
+            )}
+
+            {p.estado === "aprobado" && esCompras && (
+              <form action={resolverPedido}>
+                <input type="hidden" name="id" value={p.id} />
+                <input type="hidden" name="decision" value="entregado" />
+                <button className="aprobar">Marcar entregado</button>
+              </form>
+            )}
+
+            {(esAprobador || esCompras) && (
+              <AccionConMotivo
+                accion={resolverPedido}
+                pedidoId={p.id}
+                decision="cancelado"
+                etiqueta="Cancelar"
+                clase="rechazar"
+                titulo="¿Por qué cancelás el pedido?"
+              />
+            )}
           </div>
         )}
       </div>

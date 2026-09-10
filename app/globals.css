@@ -11,6 +11,8 @@
   --warning-txt: #854f0b;
   --danger-bg: #fcebeb;
   --danger-txt: #791f1f;
+  --info-bg: #e6f1fb;
+  --info-txt: #0c447c;
 }
 
 * { box-sizing: border-box; }
@@ -34,12 +36,7 @@ body {
   flex-wrap: wrap;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
 .brand img { height: 26px; width: auto; }
 .brand-sub {
   font-size: 13px;
@@ -60,31 +57,42 @@ body {
   padding: 4px 10px;
 }
 
-.content { max-width: 880px; margin: 0 auto; padding: 24px; }
+.content { max-width: 940px; margin: 0 auto; padding: 24px; }
 
 .card {
   background: white;
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px 24px;
+  overflow: hidden;
 }
 
 h2 { font-size: 18px; font-weight: 600; margin: 0 0 16px; }
+h3 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+
+a { color: var(--rv-azul); }
 
 label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+
 input, select, textarea {
   width: 100%;
+  max-width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
   margin-bottom: 14px;
   font-family: inherit;
+  background: white;
+  color: var(--ink);
 }
+/* el textarea solo se estira en vertical, nunca fuera de su contenedor */
+textarea { resize: vertical; min-height: 60px; display: block; }
 input:focus, select:focus, textarea:focus {
   outline: 2px solid var(--rv-azul);
   outline-offset: -1px;
 }
+input:disabled, select:disabled { background: #f5f4f1; color: var(--muted); }
 
 button {
   background: var(--rv-azul);
@@ -95,29 +103,90 @@ button {
   font-size: 14px;
   cursor: pointer;
   font-family: inherit;
+  white-space: nowrap;
 }
 button:hover { background: #17497e; }
 button.secondary { background: white; color: var(--ink); border: 1px solid var(--border); }
 button.secondary:hover { background: #f0efeb; }
 button.aprobar { background: var(--success-txt); }
+button.aprobar:hover { background: #1c3c07; }
 button.rechazar { background: white; color: var(--danger-txt); border: 1px solid var(--danger-txt); }
+button.rechazar:hover { background: var(--danger-bg); }
+button.enlace {
+  background: none;
+  border: none;
+  color: var(--rv-azul);
+  padding: 0;
+  font-size: 13px;
+  text-decoration: underline;
+}
+button.enlace:hover { background: none; color: #17497e; }
 button:disabled { opacity: .6; cursor: default; }
 
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); word-wrap: break-word; overflow-wrap: anywhere; }
 th { color: var(--muted); font-weight: 500; }
 
 .badge { font-size: 12px; padding: 2px 10px; border-radius: 6px; white-space: nowrap; }
 .badge.pendiente { background: var(--warning-bg); color: var(--warning-txt); }
-.badge.aprobado { background: var(--success-bg); color: var(--success-txt); }
+.badge.aprobado { background: var(--info-bg); color: var(--info-txt); }
+.badge.entregado { background: var(--success-bg); color: var(--success-txt); }
 .badge.rechazado { background: var(--danger-bg); color: var(--danger-txt); }
+.badge.cancelado { background: #efeee9; color: var(--muted); }
 
-.vacio {
-  text-align: center;
-  color: var(--muted);
-  padding: 40px 20px;
-  font-size: 14px;
+.fila-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
 }
+
+.fila-inline { display: flex; gap: 8px; align-items: center; }
+.fila-inline input, .fila-inline select { margin-bottom: 0; }
+
+.form-costo { display: flex; gap: 6px; align-items: center; }
+.form-costo input { margin-bottom: 0; font-size: 13px; padding: 6px 8px; }
+.form-costo button { padding: 6px 10px; font-size: 13px; }
+
+.acciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.nota-motivo {
+  background: var(--info-bg);
+  color: var(--info-txt);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.nota-motivo.negativa { background: var(--danger-bg); color: var(--danger-txt); }
+
+.aviso {
+  background: var(--warning-bg);
+  color: var(--warning-txt);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  margin: 20px 0 0;
+}
+
+.vacio { text-align: center; color: var(--muted); padding: 32px 20px; font-size: 14px; }
+
+.metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.metrica { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.metrica-label { margin: 0; font-size: 12px; color: var(--muted); }
+.metrica-valor { margin: 6px 0 0; font-size: 22px; font-weight: 600; }
 
 /* ---------- Orden de compra ---------- */
 
@@ -171,8 +240,9 @@ th { color: var(--muted); font-weight: 500; }
   font-weight: 600;
 }
 .oc td { vertical-align: top; }
-.oc .col-num { width: 32px; color: var(--muted); }
-.oc .col-cant { width: 70px; text-align: right; }
+.oc .col-num { width: 30px; color: var(--muted); }
+.oc .col-cant { width: 62px; text-align: right; }
+.oc .col-precio { width: 90px; text-align: right; }
 
 .oc-nota {
   margin-top: 22px;
@@ -188,12 +258,13 @@ th { color: var(--muted); font-weight: 500; }
   body { background: white; }
   .no-print { display: none !important; }
   .content { padding: 0; max-width: none; }
-  .oc {
-    border: none;
-    border-radius: 0;
-    padding: 0;
-    max-width: none;
-  }
+  .oc { border: none; border-radius: 0; padding: 0; max-width: none; }
   .oc thead { display: table-header-group; }
   .oc tr { break-inside: avoid; }
+}
+
+@media (max-width: 640px) {
+  .content { padding: 16px; }
+  .card { padding: 16px; }
+  table { font-size: 13px; }
 }

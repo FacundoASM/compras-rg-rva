@@ -12,6 +12,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const perfil = await getPerfilActual();
+  const gestiona =
+    perfil?.rol === "aprobador" ||
+    perfil?.rol === "compras" ||
+    perfil?.rol === "superusuario";
 
   return (
     <html lang="es">
@@ -31,14 +35,13 @@ export default async function RootLayout({
             <nav className="nav">
               <Link href="/pedidos/nuevo">Nuevo pedido</Link>
               <Link href="/mis-pedidos">Mis pedidos</Link>
-              {(perfil.rol === "aprobador" || perfil.rol === "superusuario") && (
-                <Link href="/aprobacion">Aprobación</Link>
-              )}
-              {perfil.rol === "compras" && (
-                <Link href="/aprobacion">Pedidos</Link>
-              )}
+              {gestiona && <Link href="/aprobacion">Gestión</Link>}
+              {gestiona && <Link href="/dashboard">Tablero</Link>}
               {perfil.rol === "superusuario" && (
-                <Link href="/admin/perfiles">Perfiles</Link>
+                <>
+                  <Link href="/admin/perfiles">Perfiles</Link>
+                  <Link href="/admin/categorias">Categorías</Link>
+                </>
               )}
               <span className="perfil-chip">
                 {perfil.nombre} · {perfil.rol}

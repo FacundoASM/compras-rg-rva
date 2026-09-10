@@ -11,7 +11,7 @@ export default async function OCPage({ params }: { params: { id: string } }) {
   const { data: pedido } = await supabase
     .from("pedidos")
     .select(
-      "*, solicitante:perfiles!pedidos_solicitante_id_fkey(nombre), aprobador:perfiles!pedidos_aprobado_por_fkey(nombre), items_pedido(*)"
+      "*, solicitante:perfiles!pedidos_solicitante_id_fkey(nombre), aprobador:perfiles!pedidos_aprobado_por_fkey(nombre), items_pedido(*, subcategorias(nombre, categorias(nombre)))"
     )
     .eq("id", params.id)
     .single();
@@ -24,22 +24,28 @@ export default async function OCPage({ params }: { params: { id: string } }) {
     );
   }
 
-  if (pedido.estado !== "aprobado") {
+  if (!["aprobado", "entregado"].includes(pedido.estado)) {
     return (
       <div className="card">
         <p className="vacio">
           El pedido {pedido.numero} está {pedido.estado}. La orden de compra se
-          genera una vez aprobado.
+          genera una vez aprobado. <Link href="/mis-pedidos">Volver</Link>
         </p>
       </div>
     );
   }
 
   const numeroOC = pedido.numero.replace("PED-", "OC-");
-  const totalUnidades = pedido.items_pedido.reduce(
-    (acc: number, it: any) => acc + Number(it.cantidad),
+  const unidades = pedido.items_pedido.reduce(
+    (a: number, it: any) => a + Number(it.cantidad),
     0
   );
+  const total = pedido.items_pedido.reduce(
+    (a: number, it: any) =>
+      a + Number(it.costo_unitario ?? 0) * Number(it.cantidad),
+    0
+  );
+  const conCostos = total > 0;
 
   return (
     <div>
@@ -52,7 +58,7 @@ export default async function OCPage({ params }: { params: { id: string } }) {
           marginBottom: 16,
         }}
       >
-        <Link href="/aprobacion">← Volver</Link>
+        <Link href="/mis-pedidos">← Volver</Link>
         <BotonImprimir />
       </div>
 
@@ -116,10 +122,10 @@ export default async function OCPage({ params }: { params: { id: string } }) {
             {pedido.aprobador?.nombre ?? "—"}
           </p>
           <p style={{ margin: 0 }}>
-            <span>Fecha de autorización: </span>
-            {pedido.fecha_aprobacion
-              ? new Date(pedido.fecha_aprobacion).toLocaleDateString("es-AR")
-              : "—"}
+            <span>Estado: </span>
+            {pedido.estado === "entregado"
+              ? `Entregado el ${new Date(pedido.fecha_entrega).toLocaleDateString("es-AR")}`
+              : "Aprobado, pendiente de entrega"}
           </p>
         </div>
 
@@ -128,28 +134,79 @@ export default async function OCPage({ params }: { params: { id: string } }) {
             <tr>
               <th className="col-num">#</th>
               <th>Descripción</th>
-              <th className="col-cant">Cantidad</th>
-              <th style={{ width: "32%" }}>Observaciones</th>
+              <th style={{ width: "20%" }}>Categoría</th>
+              <th className="col-cant">Cant.</th>
+              {conCostos && <th className="col-precio">Unitario</th>}
+              {conCostos && <th className="col-precio">Subtotal</th>}
+              {!conCostos && <th style={{ width: "26%" }}>Observaciones</th>}
             </tr>
           </thead>
           <tbody>
             {pedido.items_pedido.map((it: any, i: number) => (
               <tr key={it.id}>
                 <td className="col-num">{i + 1}</td>
-                <td>{it.descripcion}</td>
-                <td className="col-cant">{it.cantidad}</td>
-                <td style={{ color: "var(--muted)" }}>
-                  {it.observaciones || "—"}
+                <td>
+                  {it.descripcion}
+                  {conCostos && it.observaciones && (
+                    <>
+                      <br />
+                      <span style={{ color: "var(--muted)", fontSize: 11 }}>
+                        {it.observaciones}
+                      </span>
+                    </>
+                  )}
+                  {it.proveedor && (
+                    <>
+                      <br />
+                      <span style={{ color: "var(--muted)", fontSize: 11 }}>
+                        Proveedor: {it.proveedor}
+                      </span>
+                    </>
+                  )}
                 </td>
+                <td style={{ color: "var(--muted)", fontSize: 11 }}>
+                  {it.subcategorias
+                    ? `${it.subcategorias.categorias?.nombre} › ${it.subcategorias.nombre}`
+                    : "—"}
+                </td>
+                <td className="col-cant">{it.cantidad}</td>
+                {conCostos && (
+                  <td className="col-precio">
+                    {it.costo_unitario
+                      ? `$${Number(it.costo_unitario).toLocaleString("es-AR")}`
+                      : "—"}
+                  </td>
+                )}
+                {conCostos && (
+                  <td className="col-precio">
+                    {it.costo_unitario
+                      ? `$${(
+                          Number(it.costo_unitario) * Number(it.cantidad)
+                        ).toLocaleString("es-AR")}`
+                      : "—"}
+                  </td>
+                )}
+                {!conCostos && (
+                  <td style={{ color: "var(--muted)" }}>
+                    {it.observaciones || "—"}
+                  </td>
+                )}
               </tr>
             ))}
             <tr>
               <td></td>
               <td style={{ fontWeight: 600 }}>Total</td>
-              <td className="col-cant" style={{ fontWeight: 600 }}>
-                {totalUnidades}
-              </td>
               <td></td>
+              <td className="col-cant" style={{ fontWeight: 600 }}>
+                {unidades}
+              </td>
+              {conCostos && <td></td>}
+              {conCostos && (
+                <td className="col-precio" style={{ fontWeight: 600 }}>
+                  ${total.toLocaleString("es-AR")}
+                </td>
+              )}
+              {!conCostos && <td></td>}
             </tr>
           </tbody>
         </table>
@@ -159,9 +216,7 @@ export default async function OCPage({ params }: { params: { id: string } }) {
           {EMPRESA.nombre}. La autorización quedó registrada a nombre de{" "}
           {pedido.aprobador?.nombre ?? "—"}
           {pedido.fecha_aprobacion &&
-            ` el ${new Date(pedido.fecha_aprobacion).toLocaleDateString(
-              "es-AR"
-            )}`}
+            ` el ${new Date(pedido.fecha_aprobacion).toLocaleDateString("es-AR")}`}
           . Ante cualquier discrepancia, citar el número {numeroOC}.
         </div>
       </div>
