@@ -251,8 +251,10 @@ function pesos(n: number | string) {
   })}`;
 }
 
+type Grupo = { clave: string; proveedor: any; items: any[] };
+
 /** Un grupo por proveedor. Si el pedido tiene proveedor único, devuelve uno solo. */
-function agruparPorProveedor(pedido: any) {
+function agruparPorProveedor(pedido: any): Grupo[] {
   if (!pedido.varios_proveedores) {
     return [
       {
@@ -263,10 +265,10 @@ function agruparPorProveedor(pedido: any) {
     ];
   }
 
-  const mapa = new Map<string, { clave: string; proveedor: any; items: any[] }>();
+  const mapa = new Map<string, Grupo>();
   for (const it of pedido.items_pedido) {
-    const clave = it.proveedor_id ?? "sin";
-    const grupo = mapa.get(clave) ?? {
+    const clave: string = it.proveedor_id ?? "sin";
+    const grupo: Grupo = mapa.get(clave) ?? {
       clave,
       proveedor: it.proveedores ?? null,
       items: [],
@@ -276,7 +278,7 @@ function agruparPorProveedor(pedido: any) {
   }
 
   // Los que no tienen proveedor, al final
-  return [...mapa.values()].sort((a, b) => {
+  return [...mapa.values()].sort((a: Grupo, b: Grupo) => {
     if (a.clave === "sin") return 1;
     if (b.clave === "sin") return -1;
     return (a.proveedor?.nombre ?? "").localeCompare(b.proveedor?.nombre ?? "");
