@@ -1,5 +1,5 @@
 import "./globals.css";
-import { getPerfilActual } from "@/lib/supabase/server";
+import { createClient, getPerfilActual } from "@/lib/supabase/server";
 import BotonSalir from "./components/BotonSalir";
 import Link from "next/link";
 import Image from "next/image";
@@ -16,6 +16,19 @@ export default async function RootLayout({
     perfil?.rol === "aprobador" ||
     perfil?.rol === "compras" ||
     perfil?.rol === "superusuario";
+
+  // Contador de lo que espera acción de esta persona
+  let pendientes = 0;
+  if (gestiona) {
+    const supabase = createClient();
+    const estado =
+      perfil?.rol === "compras" ? "aprobado" : "pendiente";
+    const { count } = await supabase
+      .from("pedidos")
+      .select("id", { count: "exact", head: true })
+      .eq("estado", estado);
+    pendientes = count ?? 0;
+  }
 
   return (
     <html lang="es">
@@ -35,11 +48,21 @@ export default async function RootLayout({
             <nav className="nav">
               <Link href="/pedidos/nuevo">Nuevo pedido</Link>
               <Link href="/mis-pedidos">Mis pedidos</Link>
-              {gestiona && <Link href="/aprobacion">Gestión</Link>}
+              {gestiona && (
+                <Link href="/aprobacion">
+                  Gestión
+                  {pendientes > 0 && (
+                    <span className="contador" title="Pedidos esperando acción">
+                      {pendientes}
+                    </span>
+                  )}
+                </Link>
+              )}
               {gestiona && <Link href="/dashboard">Tablero</Link>}
               {perfil.rol === "superusuario" && (
                 <>
                   <Link href="/admin/perfiles">Perfiles</Link>
+                  <Link href="/admin/areas">Áreas</Link>
                   <Link href="/admin/categorias">Categorías</Link>
                 </>
               )}

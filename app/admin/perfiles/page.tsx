@@ -1,5 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getPerfilActual } from "@/lib/supabase/server";
+import { blanquearContrasena } from "@/app/acciones";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 
 async function actualizarPerfil(formData: FormData) {
   "use server";
@@ -7,7 +11,7 @@ async function actualizarPerfil(formData: FormData) {
   await supabase
     .from("perfiles")
     .update({
-      nombre: formData.get("nombre") as string,
+      nombre: (formData.get("nombre") as string).trim(),
       area: formData.get("area") as string,
       rol: formData.get("rol") as string,
     })
@@ -15,81 +19,81 @@ async function actualizarPerfil(formData: FormData) {
   revalidatePath("/admin/perfiles");
 }
 
-async function guardarAvisos(formData: FormData) {
-  "use server";
-  const supabase = createClient();
-  await supabase.from("configuracion").upsert({
-    clave: "avisos_email",
-    valor: {
-      aprobador: formData.get("mail_aprobador") as string,
-      compras: (formData.get("mail_compras") as string)
-        .split(",")
-        .map((m) => m.trim())
-        .filter(Boolean),
-    },
-  });
-  revalidatePath("/admin/perfiles");
-}
-
 export default async function AdminPerfilesPage() {
-  const supabase = createClient();
-  const { data: perfiles } = await supabase.from("perfiles").select("*").order("nombre");
-  const { data: config } = await supabase
-    .from("configuracion")
-    .select("valor")
-    .eq("clave", "avisos_email")
-    .maybeSingle();
+  const yo = await getPerfilActual();
+  if (yo?.rol !== "superusuario") redirect("/mis-pedidos");
 
-  const avisos = (config?.valor as any) ?? { aprobador: "", compras: [] };
+  const supabase = createClient();
+  const [{ data: perfiles }, { data: areas }] = await Promise.all([
+    supabase.from("perfiles").select("*").order("nombre"),
+    supabase.from("areas").select("nombre").order("nombre"),
+  ]);
 
   return (
     <div>
-      <p style={{ fontWeight: 500, marginBottom: 16 }}>Perfiles</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 32 }}>
+      <h2>Perfiles</h2>
+      <p style={{ fontSize: 13, color: "var(--muted)", marginTop: -8 }}>
+        Cada persona crea su cuenta desde la pantalla de ingreso y aparece acá
+        como solicitante. Asignale nombre real, área y rol.
+      </p>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {(perfiles ?? []).map((p: any) => (
-          <form
-            action={actualizarPerfil}
-            key={p.id}
-            className="card"
-            style={{ display: "flex", gap: 12, alignItems: "flex-end" }}
-          >
-            <input type="hidden" name="id" value={p.id} />
-            <div style={{ flex: 1 }}>
-              <label>Nombre</label>
-              <input name="nombre" defaultValue={p.nombre} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label>Área</label>
-              <input name="area" defaultValue={p.area} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label>Rol</label>
-              <select name="rol" defaultValue={p.rol}>
-                <option value="solicitante">Solicitante</option>
-                <option value="compras">Compras</option>
-                <option value="aprobador">Aprobador</option>
-                <option value="superusuario">Superusuario</option>
-              </select>
-            </div>
-            <button type="submit" style={{ marginBottom: 14 }}>
-              Guardar
-            </button>
-          </form>
+          <div key={p.id} className="card">
+            <form action={actualizarPerfil} className="fila-perfil">
+              <input type="hidden" name="id" value={p.id} />
+              <div style={{ flex: "2 1 180px" }}>
+                <label>Nombre</label>
+                <input name="nombre" defaultValue={p.nombre} />
+              </div>
+              <div style={{ flex: "1 1 150px" }}>
+                <label>Área</label>
+                <select name="area" defaultValue={p.area}>
+                  {!(areas ?? []).some((a: any) => a.nombre === p.area) && (
+                    <option value={p.area}>{p.area}</option>
+                  )}
+                  {(areas ?? []).map((a: any) => (
+                    <option key={a.nombre} value={a.nombre}>
+                      {a.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "1 1 140px" }}>
+                <label>Rol</label>
+                <select name="rol" defaultValue={p.rol}>
+                  <option value="solicitante">Solicitante</option>
+                  <option value="compras">Compras</option>
+                  <option value="aprobador">Aprobador</option>
+                  <option value="superusuario">Superusuario</option>
+                </select>
+              </div>
+              <button type="submit" style={{ marginBottom: 14 }}>
+                Guardar
+              </button>
+            </form>
+
+            <details className="blanqueo">
+              <summary>Blanquear contraseña</summary>
+              <form action={blanquearContrasena} className="fila-inline" style={{ marginTop: 10 }}>
+                <input type="hidden" name="usuario_id" value={p.id} />
+                <input
+                  name="contrasena"
+                  type="text"
+                  minLength={6}
+                  required
+                  placeholder="Contraseña nueva (mínimo 6)"
+                />
+                <button className="secondary">Asignar</button>
+              </form>
+              <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, marginBottom: 0 }}>
+                Anotá la contraseña antes de asignarla: no se puede volver a ver.
+                Pedile a la persona que la cambie cuando ingrese.
+              </p>
+            </details>
+          </div>
         ))}
       </div>
-
-      <p style={{ fontWeight: 500, marginBottom: 16 }}>Avisos por correo</p>
-      <form action={guardarAvisos} className="card">
-        <label>Mail del aprobador (aviso de pedido nuevo)</label>
-        <input name="mail_aprobador" defaultValue={avisos.aprobador} placeholder="aprobador@empresa.com" />
-        <label>Mails de compras (aviso de pedido aprobado, separados por coma)</label>
-        <input
-          name="mail_compras"
-          defaultValue={(avisos.compras ?? []).join(", ")}
-          placeholder="compras1@empresa.com, compras2@empresa.com"
-        />
-        <button type="submit">Guardar avisos</button>
-      </form>
     </div>
   );
 }

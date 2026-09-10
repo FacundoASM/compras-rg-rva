@@ -1,5 +1,5 @@
 import { createClient, getPerfilActual } from "@/lib/supabase/server";
-import { resolverPedido } from "@/app/acciones";
+import { resolverPedido, repetirPedido } from "@/app/acciones";
 import AccionConMotivo from "@/app/components/AccionConMotivo";
 import Link from "next/link";
 
@@ -49,13 +49,22 @@ export default async function MisPedidosPage() {
                     ` · Entregado el ${new Date(p.fecha_entrega).toLocaleDateString("es-AR")}`}
                 </p>
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 {p.estado === "pendiente" && (
                   <Link href={`/pedidos/${p.id}/editar`}>Editar</Link>
                 )}
                 {(p.estado === "aprobado" || p.estado === "entregado") && (
                   <Link href={`/oc/${p.id}`}>Ver orden de compra</Link>
                 )}
+                <form action={repetirPedido}>
+                  <input type="hidden" name="pedido_id" value={p.id} />
+                  <button
+                    className="secondary"
+                    title="Crea un pedido nuevo con los mismos ítems"
+                  >
+                    Repetir
+                  </button>
+                </form>
               </div>
             </div>
 
@@ -76,7 +85,7 @@ export default async function MisPedidosPage() {
                 <tr>
                   <th>Descripción</th>
                   <th style={{ width: "26%" }}>Categoría</th>
-                  <th style={{ width: 70, textAlign: "right" }}>Cant.</th>
+                  <th style={{ width: 66, textAlign: "right" }}>Cant.</th>
                   <th style={{ width: "24%" }}>Observaciones</th>
                 </tr>
               </thead>

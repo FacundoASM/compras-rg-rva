@@ -1,57 +1,147 @@
 import { createClient, getPerfilActual } from "@/lib/supabase/server";
 import { resolverPedido, guardarCostoItem } from "@/app/acciones";
 import AccionConMotivo from "@/app/components/AccionConMotivo";
+import FiltrosPedidos from "@/app/components/FiltrosPedidos";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const ORDEN_ESTADOS = ["pendiente", "aprobado", "entregado"];
+const POR_PAGINA = 20;
 
-export default async function AprobacionPage() {
+export default async function AprobacionPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string | undefined>;
+}) {
   const perfil = await getPerfilActual();
   const esAprobador =
     perfil?.rol === "aprobador" || perfil?.rol === "superusuario";
   const esCompras = perfil?.rol === "compras" || perfil?.rol === "superusuario";
 
+  const pagina = Math.max(1, Number(searchParams.pagina ?? 1));
   const supabase = createClient();
-  const { data: pedidos } = await supabase
+
+  const [{ data: areasData }, { data: categorias }] = await Promise.all([
+    supabase.from("areas").select("nombre").order("nombre"),
+    supabase.from("categorias").select("id, nombre").order("nombre"),
+  ]);
+
+  let consulta = supabase
     .from("pedidos")
     .select(
-      "*, perfiles!pedidos_solicitante_id_fkey(nombre), items_pedido(*, subcategorias(nombre, categorias(nombre)))"
-    )
-    .order("creado_en", { ascending: false });
+      "*, perfiles!pedidos_solicitante_id_fkey(nombre), items_pedido(*, subcategorias(nombre, categoria_id, categorias(nombre)))",
+      { count: "exact" }
+    );
 
-  const activos = (pedidos ?? []).filter((p: any) =>
-    ORDEN_ESTADOS.slice(0, 2).includes(p.estado)
+  if (searchParams.estado) consulta = consulta.eq("estado", searchParams.estado);
+  if (searchParams.area) consulta = consulta.eq("area", searchParams.area);
+  if (searchParams.desde) consulta = consulta.gte("fecha", searchParams.desde);
+  if (searchParams.hasta) {
+    const hasta = new Date(searchParams.hasta);
+    hasta.setDate(hasta.getDate() + 1);
+    consulta = consulta.lt("fecha", hasta.toISOString());
+  }
+
+  // Sin filtro de estado, priorizamos lo que requiere acción
+  const { data: crudos, count } = await consulta
+    .order("creado_en", { ascending: false })
+    .range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1);
+
+  let pedidos = crudos ?? [];
+
+  // Texto y categoría se filtran acá porque miran los ítems relacionados
+  const q = (searchParams.q ?? "").trim().toLowerCase();
+  if (q) {
+    pedidos = pedidos.filter(
+      (p: any) =>
+        p.numero.toLowerCase().includes(q) ||
+        (p.perfiles?.nombre ?? "").toLowerCase().includes(q) ||
+        p.items_pedido.some((it: any) =>
+          it.descripcion.toLowerCase().includes(q)
+        )
+    );
+  }
+  if (searchParams.categoria) {
+    pedidos = pedidos.filter((p: any) =>
+      p.items_pedido.some(
+        (it: any) => it.subcategorias?.categoria_id === searchParams.categoria
+      )
+    );
+  }
+
+  const totalPaginas = Math.max(1, Math.ceil((count ?? 0) / POR_PAGINA));
+  const hayFiltros = Boolean(
+    searchParams.q ||
+      searchParams.estado ||
+      searchParams.area ||
+      searchParams.categoria ||
+      searchParams.desde ||
+      searchParams.hasta
   );
-  const cerrados = (pedidos ?? []).filter(
-    (p: any) => !ORDEN_ESTADOS.slice(0, 2).includes(p.estado)
+
+  const activos = pedidos.filter((p: any) =>
+    ["pendiente", "aprobado"].includes(p.estado)
+  );
+  const cerrados = pedidos.filter(
+    (p: any) => !["pendiente", "aprobado"].includes(p.estado)
   );
 
   return (
     <div>
-      <h2>Pedidos en curso</h2>
-      {activos.length === 0 ? (
+      <h2>Gestión de pedidos</h2>
+
+      <FiltrosPedidos
+        areas={(areasData ?? []).map((a: any) => a.nombre)}
+        categorias={categorias ?? []}
+      />
+
+      {pedidos.length === 0 ? (
         <div className="card">
-          <p className="vacio">No hay pedidos en curso.</p>
+          <p className="vacio">
+            {hayFiltros
+              ? "Ningún pedido coincide con los filtros."
+              : "Todavía no hay pedidos cargados."}
+          </p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {activos.map((p: any) => (
-            <Tarjeta key={p.id} p={p} />
-          ))}
-        </div>
+        <>
+          {activos.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {activos.map((p: any) => (
+                <Tarjeta key={p.id} p={p} />
+              ))}
+            </div>
+          )}
+
+          {cerrados.length > 0 && (
+            <>
+              {activos.length > 0 && <h2 style={{ marginTop: 36 }}>Cerrados</h2>}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {cerrados.map((p: any) => (
+                  <Tarjeta key={p.id} p={p} soloLectura />
+                ))}
+              </div>
+            </>
+          )}
+        </>
       )}
 
-      {cerrados.length > 0 && (
-        <>
-          <h2 style={{ marginTop: 36 }}>Cerrados</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {cerrados.map((p: any) => (
-              <Tarjeta key={p.id} p={p} soloLectura />
-            ))}
-          </div>
-        </>
+      {totalPaginas > 1 && (
+        <div className="paginacion no-print">
+          {pagina > 1 && (
+            <Link href={`/aprobacion?${paramsCon(searchParams, pagina - 1)}`}>
+              ← Anterior
+            </Link>
+          )}
+          <span>
+            Página {pagina} de {totalPaginas}
+          </span>
+          {pagina < totalPaginas && (
+            <Link href={`/aprobacion?${paramsCon(searchParams, pagina + 1)}`}>
+              Siguiente →
+            </Link>
+          )}
+        </div>
       )}
     </div>
   );
@@ -79,7 +169,7 @@ export default async function AprobacionPage() {
               {p.area} · {p.perfiles?.nombre} ·{" "}
               {new Date(p.fecha).toLocaleDateString("es-AR")} ·{" "}
               {p.items_pedido.length} ítem(s), {unidades} unidad(es)
-              {total > 0 && ` · $${total.toLocaleString("es-AR")}`}
+              {total > 0 && ` · $${Math.round(total).toLocaleString("es-AR")}`}
             </p>
           </div>
           {(p.estado === "aprobado" || p.estado === "entregado") && (
@@ -90,7 +180,9 @@ export default async function AprobacionPage() {
         {p.motivo_resolucion && (
           <div
             className={`nota-motivo ${
-              p.estado === "rechazado" || p.estado === "cancelado" ? "negativa" : ""
+              p.estado === "rechazado" || p.estado === "cancelado"
+                ? "negativa"
+                : ""
             }`}
           >
             <strong>Motivo:</strong> {p.motivo_resolucion}
@@ -102,11 +194,11 @@ export default async function AprobacionPage() {
             <tr>
               <th style={{ width: 28 }}>#</th>
               <th>Descripción</th>
-              <th style={{ width: "22%" }}>Categoría</th>
-              <th style={{ width: 60, textAlign: "right" }}>Cant.</th>
-              <th style={{ width: "20%" }}>Observaciones</th>
+              <th style={{ width: "20%" }}>Categoría</th>
+              <th style={{ width: 58, textAlign: "right" }}>Cant.</th>
+              <th style={{ width: "18%" }}>Observaciones</th>
               {(cargarCostos || total > 0) && (
-                <th style={{ width: cargarCostos ? 260 : 140 }}>
+                <th style={{ width: cargarCostos ? 250 : 130 }}>
                   Costo y proveedor
                 </th>
               )}
@@ -123,7 +215,9 @@ export default async function AprobacionPage() {
                     : "Sin categoría"}
                 </td>
                 <td style={{ textAlign: "right" }}>{it.cantidad}</td>
-                <td style={{ color: "var(--muted)" }}>{it.observaciones || "—"}</td>
+                <td style={{ color: "var(--muted)" }}>
+                  {it.observaciones || "—"}
+                </td>
                 {cargarCostos ? (
                   <td>
                     <form action={guardarCostoItem} className="form-costo">
@@ -152,7 +246,9 @@ export default async function AprobacionPage() {
                     {it.proveedor && (
                       <>
                         <br />
-                        <span style={{ color: "var(--muted)" }}>{it.proveedor}</span>
+                        <span style={{ color: "var(--muted)" }}>
+                          {it.proveedor}
+                        </span>
                       </>
                     )}
                   </td>
@@ -205,4 +301,16 @@ export default async function AprobacionPage() {
       </div>
     );
   }
+}
+
+function paramsCon(
+  searchParams: Record<string, string | undefined>,
+  pagina: number
+) {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(searchParams)) {
+    if (v && k !== "pagina") p.set(k, v);
+  }
+  p.set("pagina", String(pagina));
+  return p.toString();
 }
