@@ -60,7 +60,7 @@ export default async function AreasPage() {
   return (
     <div>
       <h2>Áreas</h2>
-      <p style={{ fontSize: 13, color: "var(--muted)", marginTop: -8 }}>
+      <p className="subtitulo">
         Al renombrar un área, el cambio se aplica también a los perfiles y a los
         pedidos que la usaban. Solo se pueden borrar áreas sin gente asignada.
       </p>

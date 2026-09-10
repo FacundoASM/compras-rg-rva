@@ -58,13 +58,13 @@ export default async function CategoriasPage() {
   return (
     <div>
       <h2>Categorías</h2>
-      <p style={{ fontSize: 13, color: "var(--muted)", marginTop: -8 }}>
+      <p className="subtitulo">
         Cualquiera puede crear categorías al cargar un pedido. Acá las corregís y
         fusionás las que quedaron duplicadas, para que el tablero muestre datos
         limpios.
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="pila">
         {(categorias ?? []).map((c: any) => (
           <div key={c.id} className="card">
             <form action={renombrarCategoria} className="fila-inline">

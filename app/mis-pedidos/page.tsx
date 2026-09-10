@@ -1,6 +1,7 @@
 import { createClient, getPerfilActual } from "@/lib/supabase/server";
 import { resolverPedido, repetirPedido } from "@/app/acciones";
 import AccionConMotivo from "@/app/components/AccionConMotivo";
+import EstadoPedido from "@/app/components/EstadoPedido";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +20,11 @@ export default async function MisPedidosPage() {
     return (
       <div>
         <h2>Mis pedidos</h2>
+        <p className="subtitulo">Acá seguís el estado de todo lo que pediste.</p>
         <div className="card">
           <p className="vacio">
-            Todavía no cargaste ningún pedido.{" "}
+            Todavía no cargaste ningún pedido.
+            <br />
             <Link href="/pedidos/nuevo">Cargar el primero</Link>
           </p>
         </div>
@@ -32,7 +35,11 @@ export default async function MisPedidosPage() {
   return (
     <div>
       <h2>Mis pedidos</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <p className="subtitulo">
+        {pedidos.length} pedido(s). Acá seguís el estado de cada uno.
+      </p>
+
+      <div className="pila">
         {pedidos.map((p: any) => (
           <div key={p.id} className="card">
             <div className="fila-titulo">
@@ -41,20 +48,18 @@ export default async function MisPedidosPage() {
                   {p.numero}{" "}
                   <span className={`badge ${p.estado}`}>{p.estado}</span>
                 </p>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                  Cargado el {new Date(p.fecha).toLocaleDateString("es-AR")}
-                  {p.fecha_aprobacion &&
-                    ` · Resuelto el ${new Date(p.fecha_aprobacion).toLocaleDateString("es-AR")}`}
-                  {p.fecha_entrega &&
-                    ` · Entregado el ${new Date(p.fecha_entrega).toLocaleDateString("es-AR")}`}
+                <p className="chico tenue" style={{ margin: "3px 0 0" }}>
+                  Cargado el {fecha(p.fecha)}
+                  {p.fecha_aprobacion && ` · Resuelto el ${fecha(p.fecha_aprobacion)}`}
+                  {p.fecha_entrega && ` · Entregado el ${fecha(p.fecha_entrega)}`}
                 </p>
               </div>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 {p.estado === "pendiente" && (
                   <Link href={`/pedidos/${p.id}/editar`}>Editar</Link>
                 )}
                 {(p.estado === "aprobado" || p.estado === "entregado") && (
-                  <Link href={`/oc/${p.id}`}>Ver orden de compra</Link>
+                  <Link href={`/oc/${p.id}`}>Ver OC</Link>
                 )}
                 <form action={repetirPedido}>
                   <input type="hidden" name="pedido_id" value={p.id} />
@@ -68,12 +73,12 @@ export default async function MisPedidosPage() {
               </div>
             </div>
 
+            <EstadoPedido estado={p.estado} />
+
             {p.motivo_resolucion && (
               <div
                 className={`nota-motivo ${
-                  p.estado === "rechazado" || p.estado === "cancelado"
-                    ? "negativa"
-                    : ""
+                  ["rechazado", "cancelado"].includes(p.estado) ? "negativa" : ""
                 }`}
               >
                 <strong>Motivo:</strong> {p.motivo_resolucion}
@@ -85,21 +90,19 @@ export default async function MisPedidosPage() {
                 <tr>
                   <th>Descripción</th>
                   <th style={{ width: "26%" }}>Categoría</th>
-                  <th style={{ width: 66, textAlign: "right" }}>Cant.</th>
+                  <th className="der" style={{ width: 66 }}>Cant.</th>
                   <th style={{ width: "24%" }}>Observaciones</th>
                 </tr>
               </thead>
               <tbody>
                 {p.items_pedido.map((it: any) => (
                   <tr key={it.id}>
-                    <td>{it.descripcion}</td>
-                    <td style={{ color: "var(--muted)", fontSize: 13 }}>
-                      {it.subcategorias
-                        ? `${it.subcategorias.categorias?.nombre} › ${it.subcategorias.nombre}`
-                        : "Sin categoría"}
+                    <td data-col="Artículo">{it.descripcion}</td>
+                    <td data-col="Categoría" className="tenue chico">
+                      {categoria(it)}
                     </td>
-                    <td style={{ textAlign: "right" }}>{it.cantidad}</td>
-                    <td style={{ color: "var(--muted)" }}>
+                    <td data-col="Cantidad" className="der">{it.cantidad}</td>
+                    <td data-col="Observaciones" className="tenue">
                       {it.observaciones || "—"}
                     </td>
                   </tr>
@@ -108,7 +111,7 @@ export default async function MisPedidosPage() {
             </table>
 
             {(p.estado === "pendiente" || p.estado === "aprobado") && (
-              <div style={{ marginTop: 14 }}>
+              <div className="acciones">
                 <AccionConMotivo
                   accion={resolverPedido}
                   pedidoId={p.id}
@@ -125,4 +128,14 @@ export default async function MisPedidosPage() {
       </div>
     </div>
   );
+}
+
+function fecha(f: string) {
+  return new Date(f).toLocaleDateString("es-AR");
+}
+
+function categoria(it: any) {
+  return it.subcategorias
+    ? `${it.subcategorias.categorias?.nombre} › ${it.subcategorias.nombre}`
+    : "Sin categoría";
 }

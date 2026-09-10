@@ -2,6 +2,7 @@
 
 import { createClient, getPerfilActual } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ponerFlash } from "@/lib/flash";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -11,6 +12,13 @@ function revalidarTodo() {
   revalidatePath("/dashboard");
   revalidatePath("/", "layout");
 }
+
+const TEXTO_ESTADO: Record<string, string> = {
+  aprobado: "aprobado",
+  rechazado: "rechazado",
+  cancelado: "cancelado",
+  entregado: "marcado como entregado",
+};
 
 export async function resolverPedido(formData: FormData) {
   const id = formData.get("id") as string;
@@ -39,7 +47,19 @@ export async function resolverPedido(formData: FormData) {
     cambios.fecha_entrega = ahora;
   }
 
-  await supabase.from("pedidos").update(cambios).eq("id", id);
+  const { data, error } = await supabase
+    .from("pedidos")
+    .update(cambios)
+    .eq("id", id)
+    .select("numero")
+    .single();
+
+  if (error) {
+    ponerFlash("No se pudo actualizar el pedido: " + error.message, "error");
+  } else {
+    ponerFlash(`Pedido ${data.numero} ${TEXTO_ESTADO[decision]}`);
+  }
+
   revalidarTodo();
 }
 
@@ -49,7 +69,7 @@ export async function guardarCostoItem(formData: FormData) {
   const proveedor = ((formData.get("proveedor") as string) || "").trim();
 
   const supabase = createClient();
-  await supabase
+  const { error } = await supabase
     .from("items_pedido")
     .update({
       costo_unitario: costoRaw ? Number(costoRaw) : null,
@@ -57,6 +77,10 @@ export async function guardarCostoItem(formData: FormData) {
     })
     .eq("id", itemId);
 
+  ponerFlash(
+    error ? "No se pudo guardar el costo" : "Costo guardado",
+    error ? "error" : "exito"
+  );
   revalidarTodo();
 }
 
@@ -66,12 +90,13 @@ export async function eliminarItem(formData: FormData) {
     .from("items_pedido")
     .delete()
     .eq("id", formData.get("item_id") as string);
+  ponerFlash("Ítem quitado del pedido");
   revalidarTodo();
 }
 
 export async function agregarItemAPedido(formData: FormData) {
   const supabase = createClient();
-  await supabase.from("items_pedido").insert({
+  const { error } = await supabase.from("items_pedido").insert({
     pedido_id: formData.get("pedido_id") as string,
     descripcion: (formData.get("descripcion") as string).trim(),
     cantidad: Number(formData.get("cantidad")),
@@ -79,10 +104,54 @@ export async function agregarItemAPedido(formData: FormData) {
       ((formData.get("observaciones") as string) || "").trim() || null,
     subcategoria_id: (formData.get("subcategoria_id") as string) || null,
   });
+  ponerFlash(
+    error ? "No se pudo agregar el ítem" : "Ítem agregado",
+    error ? "error" : "exito"
+  );
   revalidarTodo();
 }
 
-/** Clona un pedido anterior como nuevo pedido pendiente del usuario actual. */
+/** Crea el pedido completo del lado del servidor, con la sesión ya validada. */
+export async function crearPedido(datos: {
+  items: {
+    descripcion: string;
+    cantidad: number;
+    observaciones: string;
+    subcategoria_id: string;
+  }[];
+}) {
+  const perfil = await getPerfilActual();
+  if (!perfil) return { error: "Tu sesión expiró. Volvé a ingresar." };
+  if (!datos.items.length) return { error: "Agregá al menos un ítem" };
+
+  const supabase = createClient();
+  const { data: pedido, error } = await supabase
+    .from("pedidos")
+    .insert({ solicitante_id: perfil.id, area: perfil.area })
+    .select("id, numero")
+    .single();
+
+  if (error || !pedido) {
+    return { error: error?.message ?? "No se pudo crear el pedido" };
+  }
+
+  const { error: errItems } = await supabase.from("items_pedido").insert(
+    datos.items.map((it) => ({
+      pedido_id: pedido.id,
+      descripcion: it.descripcion,
+      cantidad: it.cantidad,
+      observaciones: it.observaciones || null,
+      subcategoria_id: it.subcategoria_id || null,
+    }))
+  );
+
+  if (errItems) return { error: errItems.message };
+
+  ponerFlash(`Pedido ${pedido.numero} enviado para aprobación`);
+  revalidarTodo();
+  return { ok: true, numero: pedido.numero };
+}
+
 export async function repetirPedido(formData: FormData) {
   const origenId = formData.get("pedido_id") as string;
   const supabase = createClient();
@@ -91,7 +160,9 @@ export async function repetirPedido(formData: FormData) {
 
   const { data: origen } = await supabase
     .from("pedidos")
-    .select("id, items_pedido(descripcion, cantidad, observaciones, subcategoria_id)")
+    .select(
+      "id, items_pedido(descripcion, cantidad, observaciones, subcategoria_id)"
+    )
     .eq("id", origenId)
     .single();
 
@@ -103,7 +174,10 @@ export async function repetirPedido(formData: FormData) {
     .select()
     .single();
 
-  if (error || !nuevo) return;
+  if (error || !nuevo) {
+    ponerFlash("No se pudo repetir el pedido", "error");
+    return;
+  }
 
   await supabase.from("items_pedido").insert(
     origen.items_pedido.map((it: any) => ({
@@ -115,20 +189,37 @@ export async function repetirPedido(formData: FormData) {
     }))
   );
 
+  ponerFlash(
+    `Se creó ${nuevo.numero} con los mismos ítems. Revisalo y enviálo.`,
+    "info"
+  );
   revalidarTodo();
   redirect(`/pedidos/${nuevo.id}/editar`);
 }
 
-/** Solo superusuario: asigna una contraseña nueva a otra persona. */
 export async function blanquearContrasena(formData: FormData) {
   const perfil = await getPerfilActual();
   if (perfil?.rol !== "superusuario") return;
 
   const usuarioId = formData.get("usuario_id") as string;
   const nueva = (formData.get("contrasena") as string) || "";
-  if (nueva.length < 6) return;
+  if (nueva.length < 6) {
+    ponerFlash("La contraseña debe tener al menos 6 caracteres", "error");
+    return;
+  }
 
-  const admin = createAdminClient();
-  await admin.auth.admin.updateUserById(usuarioId, { password: nueva });
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.auth.admin.updateUserById(usuarioId, {
+      password: nueva,
+    });
+    ponerFlash(
+      error ? "No se pudo cambiar la contraseña" : "Contraseña actualizada",
+      error ? "error" : "exito"
+    );
+  } catch (e: any) {
+    ponerFlash(e.message ?? "Error al cambiar la contraseña", "error");
+  }
+
   revalidatePath("/admin/perfiles");
 }

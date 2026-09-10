@@ -64,13 +64,13 @@ export default async function EditarPedidoPage({
             {pedido.items_pedido.map((it: any) => (
               <tr key={it.id}>
                 <td>{it.descripcion}</td>
-                <td style={{ color: "var(--muted)", fontSize: 13 }}>
+                <td style={{ color: "var(--tinta-3)", fontSize: 13 }}>
                   {it.subcategorias
                     ? `${it.subcategorias.categorias?.nombre} › ${it.subcategorias.nombre}`
                     : "Sin categoría"}
                 </td>
                 <td style={{ textAlign: "right" }}>{it.cantidad}</td>
-                <td style={{ color: "var(--muted)" }}>
+                <td style={{ color: "var(--tinta-3)" }}>
                   {it.observaciones || "—"}
                 </td>
                 <td>

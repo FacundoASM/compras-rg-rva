@@ -173,11 +173,11 @@ export default function SelectorCategoria({
             </button>
           </div>
           {error && (
-            <p style={{ color: "var(--danger-txt)", fontSize: 13, marginTop: 6 }}>
+            <p style={{ color: "var(--mal-tx)", fontSize: 13, marginTop: 6 }}>
               {error}
             </p>
           )}
-          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
+          <p style={{ fontSize: 12, color: "var(--tinta-3)", marginTop: 6 }}>
             Antes de crear una, fijate que no exista con otro nombre parecido.
           </p>
         </div>

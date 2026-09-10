@@ -91,7 +91,7 @@ export default async function OCPage({ params }: { params: { id: string } }) {
           <div className="oc-titulo">
             <h1>Orden de compra</h1>
             <p className="oc-numero">{numeroOC}</p>
-            <p style={{ fontSize: 11, color: "var(--muted)", margin: "2px 0 0" }}>
+            <p style={{ fontSize: 11, color: "var(--tinta-3)", margin: "2px 0 0" }}>
               Emitida el{" "}
               {new Date(
                 pedido.fecha_aprobacion ?? pedido.fecha
@@ -150,7 +150,7 @@ export default async function OCPage({ params }: { params: { id: string } }) {
                   {conCostos && it.observaciones && (
                     <>
                       <br />
-                      <span style={{ color: "var(--muted)", fontSize: 11 }}>
+                      <span style={{ color: "var(--tinta-3)", fontSize: 11 }}>
                         {it.observaciones}
                       </span>
                     </>
@@ -158,13 +158,13 @@ export default async function OCPage({ params }: { params: { id: string } }) {
                   {it.proveedor && (
                     <>
                       <br />
-                      <span style={{ color: "var(--muted)", fontSize: 11 }}>
+                      <span style={{ color: "var(--tinta-3)", fontSize: 11 }}>
                         Proveedor: {it.proveedor}
                       </span>
                     </>
                   )}
                 </td>
-                <td style={{ color: "var(--muted)", fontSize: 11 }}>
+                <td style={{ color: "var(--tinta-3)", fontSize: 11 }}>
                   {it.subcategorias
                     ? `${it.subcategorias.categorias?.nombre} › ${it.subcategorias.nombre}`
                     : "—"}
@@ -187,7 +187,7 @@ export default async function OCPage({ params }: { params: { id: string } }) {
                   </td>
                 )}
                 {!conCostos && (
-                  <td style={{ color: "var(--muted)" }}>
+                  <td style={{ color: "var(--tinta-3)" }}>
                     {it.observaciones || "—"}
                   </td>
                 )}

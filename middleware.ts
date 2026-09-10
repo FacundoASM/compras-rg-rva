@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
+const PUBLICAS = ["/login"];
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -27,15 +29,32 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!data.user && request.nextUrl.pathname !== "/login") {
-    return NextResponse.redirect(new URL("/login", request.url));
+  const esPublica = PUBLICAS.some((r) => request.nextUrl.pathname.startsWith(r));
+
+  if (!user && !esPublica) {
+    const redir = NextResponse.redirect(new URL("/login", request.url));
+    // IMPORTANTE: arrastrar las cookies de sesión ya refrescadas a la respuesta
+    // de redirección. Sin esto se pierde la sesión y el usuario queda deslogueado.
+    response.cookies.getAll().forEach((c) => redir.cookies.set(c));
+    return redir;
+  }
+
+  if (user && esPublica) {
+    const redir = NextResponse.redirect(new URL("/mis-pedidos", request.url));
+    response.cookies.getAll().forEach((c) => redir.cookies.set(c));
+    return redir;
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    // todo menos estáticos, imágenes y archivos con extensión (logo, favicon)
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:jpg|jpeg|png|svg|gif|webp|ico)$).*)",
+  ],
 };

@@ -2,6 +2,7 @@ import { createClient, getPerfilActual } from "@/lib/supabase/server";
 import { resolverPedido, guardarCostoItem } from "@/app/acciones";
 import AccionConMotivo from "@/app/components/AccionConMotivo";
 import FiltrosPedidos from "@/app/components/FiltrosPedidos";
+import EstadoPedido from "@/app/components/EstadoPedido";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +90,7 @@ export default async function AprobacionPage({
   return (
     <div>
       <h2>Gestión de pedidos</h2>
+      <p className="subtitulo">Aprobá pedidos, marcá entregas y cargá los costos de cada compra.</p>
 
       <FiltrosPedidos
         areas={(areasData ?? []).map((a: any) => a.nombre)}
@@ -106,7 +108,7 @@ export default async function AprobacionPage({
       ) : (
         <>
           {activos.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="pila">
               {activos.map((p: any) => (
                 <Tarjeta key={p.id} p={p} />
               ))}
@@ -116,7 +118,7 @@ export default async function AprobacionPage({
           {cerrados.length > 0 && (
             <>
               {activos.length > 0 && <h2 style={{ marginTop: 36 }}>Cerrados</h2>}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="pila">
                 {cerrados.map((p: any) => (
                   <Tarjeta key={p.id} p={p} soloLectura />
                 ))}
@@ -165,7 +167,7 @@ export default async function AprobacionPage({
             <p style={{ margin: 0, fontWeight: 600 }}>
               {p.numero} <span className={`badge ${p.estado}`}>{p.estado}</span>
             </p>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
+            <p className="chico tenue" style={{ margin: "3px 0 0" }}>
               {p.area} · {p.perfiles?.nombre} ·{" "}
               {new Date(p.fecha).toLocaleDateString("es-AR")} ·{" "}
               {p.items_pedido.length} ítem(s), {unidades} unidad(es)
@@ -176,6 +178,8 @@ export default async function AprobacionPage({
             <Link href={`/oc/${p.id}`}>Ver orden de compra</Link>
           )}
         </div>
+
+        <EstadoPedido estado={p.estado} />
 
         {p.motivo_resolucion && (
           <div
@@ -207,19 +211,19 @@ export default async function AprobacionPage({
           <tbody>
             {p.items_pedido.map((it: any, i: number) => (
               <tr key={it.id}>
-                <td style={{ color: "var(--muted)" }}>{i + 1}</td>
-                <td>{it.descripcion}</td>
-                <td style={{ color: "var(--muted)", fontSize: 13 }}>
+                <td data-col="#" className="tenue">{i + 1}</td>
+                <td data-col="Artículo">{it.descripcion}</td>
+                <td data-col="Categoría" className="tenue chico">
                   {it.subcategorias
                     ? `${it.subcategorias.categorias?.nombre} › ${it.subcategorias.nombre}`
                     : "Sin categoría"}
                 </td>
-                <td style={{ textAlign: "right" }}>{it.cantidad}</td>
-                <td style={{ color: "var(--muted)" }}>
+                <td data-col="Cantidad" className="der">{it.cantidad}</td>
+                <td data-col="Observaciones" className="tenue">
                   {it.observaciones || "—"}
                 </td>
                 {cargarCostos ? (
-                  <td>
+                  <td data-col="Costo">
                     <form action={guardarCostoItem} className="form-costo">
                       <input type="hidden" name="item_id" value={it.id} />
                       <input
@@ -239,14 +243,14 @@ export default async function AprobacionPage({
                     </form>
                   </td>
                 ) : total > 0 ? (
-                  <td style={{ fontSize: 13 }}>
+                  <td data-col="Costo" className="chico">
                     {it.costo_unitario
                       ? `$${Number(it.costo_unitario).toLocaleString("es-AR")}`
                       : "—"}
                     {it.proveedor && (
                       <>
                         <br />
-                        <span style={{ color: "var(--muted)" }}>
+                        <span className="tenue">
                           {it.proveedor}
                         </span>
                       </>

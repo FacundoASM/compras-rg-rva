@@ -32,12 +32,12 @@ export default async function AdminPerfilesPage() {
   return (
     <div>
       <h2>Perfiles</h2>
-      <p style={{ fontSize: 13, color: "var(--muted)", marginTop: -8 }}>
+      <p className="subtitulo">
         Cada persona crea su cuenta desde la pantalla de ingreso y aparece acá
         como solicitante. Asignale nombre real, área y rol.
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="pila">
         {(perfiles ?? []).map((p: any) => (
           <div key={p.id} className="card">
             <form action={actualizarPerfil} className="fila-perfil">
@@ -86,7 +86,7 @@ export default async function AdminPerfilesPage() {
                 />
                 <button className="secondary">Asignar</button>
               </form>
-              <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8, marginBottom: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--tinta-3)", marginTop: 8, marginBottom: 0 }}>
                 Anotá la contraseña antes de asignarla: no se puede volver a ver.
                 Pedile a la persona que la cambie cuando ingrese.
               </p>

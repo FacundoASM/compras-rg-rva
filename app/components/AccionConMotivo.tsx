@@ -41,11 +41,11 @@ export default function AccionConMotivo({
         }
       }}
       style={{
-        border: "1px solid var(--border)",
+        border: "1px solid var(--linea)",
         borderRadius: 8,
         padding: 12,
         width: "100%",
-        background: "#fbfaf8",
+        background: "var(--fondo)",
       }}
     >
       <input type="hidden" name="id" value={pedidoId} />
@@ -64,7 +64,7 @@ export default function AccionConMotivo({
         style={{ marginBottom: 8 }}
       />
       {error && (
-        <p style={{ color: "var(--danger-txt)", fontSize: 13, margin: "0 0 8px" }}>
+        <p style={{ color: "var(--mal-tx)", fontSize: 13, margin: "0 0 8px" }}>
           {error}
         </p>
       )}

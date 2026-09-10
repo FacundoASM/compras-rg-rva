@@ -1,10 +1,20 @@
 import "./globals.css";
+import { Inter } from "next/font/google";
 import { createClient, getPerfilActual } from "@/lib/supabase/server";
-import BotonSalir from "./components/BotonSalir";
-import Link from "next/link";
-import Image from "next/image";
+import { leerFlash } from "@/lib/flash";
+import Navegacion from "./components/Navegacion";
+import Aviso from "./components/Aviso";
 
-export const metadata = { title: "Compras · Radio Victoria" };
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--fuente",
+});
+
+export const metadata = {
+  title: "Compras · Radio Victoria",
+  description: "Sistema de pedidos y órdenes de compra",
+};
 
 export default async function RootLayout({
   children,
@@ -12,17 +22,17 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const perfil = await getPerfilActual();
+  const flash = leerFlash();
+
   const gestiona =
     perfil?.rol === "aprobador" ||
     perfil?.rol === "compras" ||
     perfil?.rol === "superusuario";
 
-  // Contador de lo que espera acción de esta persona
   let pendientes = 0;
   if (gestiona) {
     const supabase = createClient();
-    const estado =
-      perfil?.rol === "compras" ? "aprobado" : "pendiente";
+    const estado = perfil?.rol === "compras" ? "aprobado" : "pendiente";
     const { count } = await supabase
       .from("pedidos")
       .select("id", { count: "exact", head: true })
@@ -30,50 +40,30 @@ export default async function RootLayout({
     pendientes = count ?? 0;
   }
 
+  const enlaces = [
+    { href: "/pedidos/nuevo", texto: "Nuevo pedido" },
+    { href: "/mis-pedidos", texto: "Mis pedidos" },
+    ...(gestiona
+      ? [
+          { href: "/aprobacion", texto: "Gestión", contador: pendientes },
+          { href: "/dashboard", texto: "Tablero" },
+        ]
+      : []),
+    ...(perfil?.rol === "superusuario"
+      ? [
+          { href: "/admin/perfiles", texto: "Perfiles" },
+          { href: "/admin/areas", texto: "Áreas" },
+          { href: "/admin/categorias", texto: "Categorías" },
+        ]
+      : []),
+  ];
+
   return (
-    <html lang="es">
-      <body>
-        <header className="topbar no-print">
-          <Link href="/" className="brand">
-            <Image
-              src="/rv-logo.jpg"
-              alt="Radio Victoria"
-              width={1218}
-              height={177}
-              priority
-            />
-            <span className="brand-sub">Compras</span>
-          </Link>
-          {perfil && (
-            <nav className="nav">
-              <Link href="/pedidos/nuevo">Nuevo pedido</Link>
-              <Link href="/mis-pedidos">Mis pedidos</Link>
-              {gestiona && (
-                <Link href="/aprobacion">
-                  Gestión
-                  {pendientes > 0 && (
-                    <span className="contador" title="Pedidos esperando acción">
-                      {pendientes}
-                    </span>
-                  )}
-                </Link>
-              )}
-              {gestiona && <Link href="/dashboard">Tablero</Link>}
-              {perfil.rol === "superusuario" && (
-                <>
-                  <Link href="/admin/perfiles">Perfiles</Link>
-                  <Link href="/admin/areas">Áreas</Link>
-                  <Link href="/admin/categorias">Categorías</Link>
-                </>
-              )}
-              <span className="perfil-chip">
-                {perfil.nombre} · {perfil.rol}
-              </span>
-              <BotonSalir />
-            </nav>
-          )}
-        </header>
-        <main className="content">{children}</main>
+    <html lang="es" className={inter.variable}>
+      <body className={perfil ? "con-lateral" : ""}>
+        {perfil && <Navegacion perfil={perfil} enlaces={enlaces} />}
+        <main className="contenido">{children}</main>
+        <Aviso flash={flash} />
       </body>
     </html>
   );

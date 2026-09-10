@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { crearPedido } from "@/app/acciones";
 import SelectorCategoria, {
   type Categoria,
   type Subcategoria,
@@ -72,42 +72,25 @@ export default function FormularioPedido({
     setError("");
     setEnviando(true);
 
-    const supabase = createClient();
-    const { data: auth } = await supabase.auth.getUser();
-    const { data: perfil } = await supabase
-      .from("perfiles")
-      .select("area")
-      .eq("id", auth.user!.id)
-      .single();
-
-    const { data: pedido, error: errPedido } = await supabase
-      .from("pedidos")
-      .insert({ solicitante_id: auth.user!.id, area: perfil?.area ?? "" })
-      .select()
-      .single();
-
-    if (errPedido || !pedido) {
-      setError(errPedido?.message ?? "No se pudo crear el pedido");
-      setEnviando(false);
-      return;
-    }
-
-    const { error: errItems } = await supabase.from("items_pedido").insert(
-      items.map((it) => ({
-        pedido_id: pedido.id,
+    // El pedido se crea del lado del servidor: la sesión se valida ahí,
+    // así no se pierde al navegar después de enviar.
+    const res = await crearPedido({
+      items: items.map((it) => ({
         descripcion: it.descripcion,
         cantidad: it.cantidad,
-        observaciones: it.observaciones || null,
-        subcategoria_id: it.subcategoria_id || null,
-      }))
-    );
+        observaciones: it.observaciones,
+        subcategoria_id: it.subcategoria_id,
+      })),
+    });
 
     setEnviando(false);
-    if (errItems) {
-      setError(errItems.message);
+
+    if (res?.error) {
+      setError(res.error);
       return;
     }
 
+    setItems([]);
     router.push("/mis-pedidos");
     router.refresh();
   }
@@ -151,7 +134,7 @@ export default function FormularioPedido({
         />
 
         {error && (
-          <p style={{ color: "var(--danger-txt)", fontSize: 13, marginTop: -8, marginBottom: 12 }}>
+          <p className="error-login" style={{ marginTop: -4 }}>
             {error}
           </p>
         )}
@@ -170,7 +153,7 @@ export default function FormularioPedido({
                 <tr>
                   <th>Descripción</th>
                   <th style={{ width: "28%" }}>Categoría</th>
-                  <th style={{ width: 70, textAlign: "right" }}>Cant.</th>
+                  <th className="der" style={{ width: 70 }}>Cant.</th>
                   <th style={{ width: "22%" }}>Observaciones</th>
                   <th style={{ width: 80 }}></th>
                 </tr>
@@ -178,12 +161,12 @@ export default function FormularioPedido({
               <tbody>
                 {items.map((it, i) => (
                   <tr key={i}>
-                    <td>{it.descripcion}</td>
-                    <td style={{ color: "var(--muted)", fontSize: 13 }}>
+                    <td data-col="Artículo">{it.descripcion}</td>
+                    <td data-col="Categoría" className="tenue chico">
                       {it.etiqueta}
                     </td>
-                    <td style={{ textAlign: "right" }}>{it.cantidad}</td>
-                    <td style={{ color: "var(--muted)" }}>
+                    <td data-col="Cantidad" className="der">{it.cantidad}</td>
+                    <td data-col="Observaciones" className="tenue">
                       {it.observaciones || "—"}
                     </td>
                     <td>
