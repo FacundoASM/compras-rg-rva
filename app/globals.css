@@ -613,6 +613,23 @@ tbody tr:last-child td { border-bottom: none; }
 
 .oc-sin-proveedor { font-size: 11.5px; color: var(--tinta-3); margin: 0; font-style: italic; }
 
+/* Franja con el solicitante, entre los datos de las partes y el detalle */
+.oc-solicitante {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  background: #f4f7fb;
+  /* Los bordes se imprimen aunque el usuario no active "gráficos de fondo",
+     así que la franja se distingue igual sin el color de fondo. */
+  border: 1px solid var(--linea-fuerte);
+  border-left: 3px solid var(--rv-azul);
+  border-radius: 3px;
+  padding: 7px 12px;
+  margin-bottom: 14px;
+}
+.oc-solicitante strong { font-weight: 600; color: var(--tinta-2); }
+
 /* Detalle */
 .oc-tabla { font-size: 11.5px; table-layout: fixed; width: 100%; }
 .oc-tabla thead th {

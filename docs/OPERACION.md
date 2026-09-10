@@ -11,9 +11,10 @@ un sistema que en algún momento pierde datos.
 
 ### Con Supabase en la nube
 
-El plan gratuito hace copias diarias con retención de 7 días. Alcanza para
-accidentes chicos, pero no cubre un error detectado tarde. Conviene sumar una
-copia propia:
+**El plan gratuito de Supabase NO hace copias de seguridad automáticas.** Si se
+borra algo por error, no hay de dónde restaurar salvo lo que hayas guardado por
+tu cuenta. Mientras el sistema siga en el plan gratuito, este script no es una
+recomendación: es la única red de seguridad que existe.
 
 ```bash
 #!/bin/bash
@@ -268,6 +269,7 @@ order by h.creado_en;
 - [ ] Verificar que no haya superusuarios de más
 - [ ] En instalación local: confirmar que ningún secreto quedó con el valor de
       ejemplo de Supabase
+- [ ] Confirmar que la última copia de seguridad se generó y se puede leer
 
 ```sql
 -- quiénes tienen permisos altos

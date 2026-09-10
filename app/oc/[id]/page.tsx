@@ -11,7 +11,7 @@ export default async function OCPage({ params }: { params: { id: string } }) {
   const { data: pedido } = await supabase
     .from("pedidos")
     .select(
-      "*, proveedores(*), items_pedido(*, proveedores(*), subcategorias(nombre, categorias(nombre)))"
+      "*, solicitante:perfiles!pedidos_solicitante_id_fkey(nombre), proveedores(*), items_pedido(*, proveedores(*), subcategorias(nombre, categorias(nombre)))"
     )
     .eq("id", params.id)
     .single();
@@ -151,6 +151,16 @@ function Orden({
             <Dato etiqueta="E-mail" valor={EMPRESA.email} />
           </dl>
         </div>
+      </div>
+
+      {/* ---- Solicitante ---- */}
+      <div className="oc-solicitante">
+        <span>
+          <strong>Solicitante:</strong> {pedido.solicitante?.nombre ?? "—"}
+        </span>
+        <span>
+          <strong>Área:</strong> {pedido.area || "—"}
+        </span>
       </div>
 
       {/* ---- Detalle ---- */}

@@ -36,6 +36,6 @@ export async function getPerfilActual() {
     .from("perfiles")
     .select("*")
     .eq("id", auth.user.id)
-    .single();
+    .maybeSingle();
   return perfil;
 }
