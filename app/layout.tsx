@@ -47,6 +47,7 @@ export default async function RootLayout({
       ? [
           { href: "/aprobacion", texto: "Gestión", contador: pendientes },
           { href: "/dashboard", texto: "Tablero" },
+          { href: "/admin/proveedores", texto: "Proveedores" },
         ]
       : []),
     ...(perfil?.rol === "superusuario"

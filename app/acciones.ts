@@ -66,15 +66,11 @@ export async function resolverPedido(formData: FormData) {
 export async function guardarCostoItem(formData: FormData) {
   const itemId = formData.get("item_id") as string;
   const costoRaw = formData.get("costo_unitario") as string;
-  const proveedor = ((formData.get("proveedor") as string) || "").trim();
 
   const supabase = createClient();
   const { error } = await supabase
     .from("items_pedido")
-    .update({
-      costo_unitario: costoRaw ? Number(costoRaw) : null,
-      proveedor: proveedor || null,
-    })
+    .update({ costo_unitario: costoRaw ? Number(costoRaw) : null })
     .eq("id", itemId);
 
   ponerFlash(
@@ -222,4 +218,126 @@ export async function blanquearContrasena(formData: FormData) {
   }
 
   revalidatePath("/admin/perfiles");
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Proveedores                                                         */
+/* ------------------------------------------------------------------ */
+
+/** Asigna el proveedor del pedido, o lo marca como "varios proveedores". */
+export async function asignarProveedorPedido(formData: FormData) {
+  const pedidoId = formData.get("pedido_id") as string;
+  const valor = (formData.get("proveedor_id") as string) || "";
+
+  const supabase = createClient();
+
+  if (valor === "VARIOS") {
+    const { error } = await supabase
+      .from("pedidos")
+      .update({ varios_proveedores: true, proveedor_id: null })
+      .eq("id", pedidoId);
+    ponerFlash(
+      error ? "No se pudo guardar" : "El pedido se reparte entre varios proveedores",
+      error ? "error" : "info"
+    );
+  } else {
+    // Un solo proveedor para todo el pedido: se limpian los de cada ítem
+    const { error } = await supabase
+      .from("pedidos")
+      .update({
+        varios_proveedores: false,
+        proveedor_id: valor || null,
+      })
+      .eq("id", pedidoId);
+
+    if (!error) {
+      await supabase
+        .from("items_pedido")
+        .update({ proveedor_id: null })
+        .eq("pedido_id", pedidoId);
+    }
+
+    ponerFlash(
+      error ? "No se pudo guardar" : valor ? "Proveedor asignado" : "Proveedor quitado",
+      error ? "error" : "exito"
+    );
+  }
+
+  revalidarTodo();
+}
+
+/** Asigna el proveedor de un ítem, cuando el pedido es de varios proveedores. */
+export async function asignarProveedorItem(formData: FormData) {
+  const itemId = formData.get("item_id") as string;
+  const valor = (formData.get("proveedor_id") as string) || null;
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("items_pedido")
+    .update({ proveedor_id: valor })
+    .eq("id", itemId);
+
+  ponerFlash(
+    error ? "No se pudo asignar el proveedor" : "Proveedor del artículo guardado",
+    error ? "error" : "exito"
+  );
+  revalidarTodo();
+}
+
+/* ------------------------------------------------------------------ */
+/* Adjuntos                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Registra en la base un archivo ya subido al depósito. */
+export async function registrarAdjunto(datos: {
+  pedidoId: string;
+  nombreArchivo: string;
+  ruta: string;
+  tipo: string;
+  tamano: number;
+}) {
+  const perfil = await getPerfilActual();
+  if (!perfil) return { error: "Sesión vencida" };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("adjuntos").insert({
+    pedido_id: datos.pedidoId,
+    nombre_archivo: datos.nombreArchivo,
+    ruta: datos.ruta,
+    tipo: datos.tipo,
+    tamano: datos.tamano,
+    subido_por: perfil.id,
+  });
+
+  if (error) return { error: error.message };
+
+  ponerFlash(`Se adjuntó ${datos.nombreArchivo}`);
+  revalidarTodo();
+  return { ok: true };
+}
+
+export async function eliminarAdjunto(formData: FormData) {
+  const id = formData.get("adjunto_id") as string;
+  const ruta = formData.get("ruta") as string;
+
+  const supabase = createClient();
+  await supabase.storage.from("adjuntos").remove([ruta]);
+  const { error } = await supabase.from("adjuntos").delete().eq("id", id);
+
+  ponerFlash(
+    error ? "No se pudo eliminar el archivo" : "Archivo eliminado",
+    error ? "error" : "exito"
+  );
+  revalidarTodo();
+}
+
+/** Devuelve un enlace temporal para descargar un adjunto (vale 60 segundos). */
+export async function enlaceAdjunto(ruta: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from("adjuntos")
+    .createSignedUrl(ruta, 60);
+  if (error || !data) return { error: "No se pudo generar el enlace" };
+  return { url: data.signedUrl };
 }

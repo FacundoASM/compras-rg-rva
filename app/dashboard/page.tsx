@@ -1,20 +1,62 @@
 import { createClient, getPerfilActual } from "@/lib/supabase/server";
+import FiltrosTablero from "@/app/components/FiltrosTablero";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string | undefined>;
+}) {
   const perfil = await getPerfilActual();
   if (!["aprobador", "compras", "superusuario"].includes(perfil?.rol ?? "")) {
     redirect("/mis-pedidos");
   }
 
   const supabase = createClient();
-  const { data } = await supabase
-    .from("pedidos")
-    .select("*, items_pedido(*, subcategorias(nombre, categorias(nombre)))");
 
-  const todos = data ?? [];
+  const periodo = searchParams.periodo ?? "6";
+  const filtroArea = searchParams.area ?? "";
+  const filtroCategoria = searchParams.categoria ?? "";
+  const meses = periodo === "todo" ? null : Number(periodo);
+
+  let consulta = supabase
+    .from("pedidos")
+    .select(
+      "*, proveedores(nombre), items_pedido(*, proveedores(nombre), subcategorias(nombre, categoria_id, categorias(nombre)))"
+    );
+
+  if (meses) {
+    const desde = new Date();
+    desde.setMonth(desde.getMonth() - (meses - 1));
+    desde.setDate(1);
+    desde.setHours(0, 0, 0, 0);
+    consulta = consulta.gte("fecha", desde.toISOString());
+  }
+  if (filtroArea) consulta = consulta.eq("area", filtroArea);
+
+  const [{ data }, { data: areasData }, { data: cats }] = await Promise.all([
+    consulta,
+    supabase.from("areas").select("nombre").order("nombre"),
+    supabase.from("categorias").select("id, nombre").order("nombre"),
+  ]);
+
+  let todos = data ?? [];
+
+  // El filtro de categoría se aplica sobre los ítems: se dejan solo los
+  // que pertenecen a la categoría elegida, y los pedidos que quedan sin ítems salen.
+  if (filtroCategoria) {
+    todos = todos
+      .map((p: any) => ({
+        ...p,
+        items_pedido: p.items_pedido.filter(
+          (it: any) => it.subcategorias?.categoria_id === filtroCategoria
+        ),
+      }))
+      .filter((p: any) => p.items_pedido.length > 0);
+  }
+
   const vigentes = todos.filter(
     (p: any) => !["cancelado", "rechazado"].includes(p.estado)
   );
@@ -33,12 +75,12 @@ export default async function DashboardPage() {
     conEnt.map((p: any) => dias(p.fecha_aprobacion, p.fecha_entrega))
   );
 
-  const porMes = serieMensual(vigentes);
+  const porMes = serieMensual(vigentes, meses ?? 12);
   const porCategoria = agrupar(vigentes, (it: any) =>
     it.subcategorias?.categorias?.nombre ?? "Sin categoría"
   ).slice(0, 6);
   const porArea = agruparPedidos(vigentes).slice(0, 6);
-  const porProveedor = agrupar(vigentes, (it: any) => it.proveedor || null).slice(0, 6);
+  const porProveedor = agruparProveedor(vigentes).slice(0, 6);
   const masPedidos = agrupar(vigentes, (it: any) =>
     it.descripcion.trim().toLowerCase()
   )
@@ -51,9 +93,22 @@ export default async function DashboardPage() {
     <div>
       <h2>Tablero de compras</h2>
       <p className="subtitulo">
-        Sobre {vigentes.length} pedido(s) vigentes. No se cuentan los cancelados
-        ni los rechazados.
+        {vigentes.length} pedido(s) vigentes en el período. No se cuentan los
+        cancelados ni los rechazados.
       </p>
+
+      <FiltrosTablero
+        areas={(areasData ?? []).map((a: any) => a.nombre)}
+        categorias={cats ?? []}
+      />
+
+      {vigentes.length === 0 && (
+        <div className="card">
+          <p className="vacio">
+            Ningún pedido coincide con los filtros elegidos.
+          </p>
+        </div>
+      )}
 
       <div className="metricas">
         <Metrica etiqueta="Por aprobar" valor={pendientes} />
@@ -302,10 +357,10 @@ function miles(n: number) {
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
-function serieMensual(pedidos: any[]) {
+function serieMensual(pedidos: any[], meses: number) {
   const hoy = new Date();
   const claves: { mes: string; clave: string }[] = [];
-  for (let i = 5; i >= 0; i--) {
+  for (let i = meses - 1; i >= 0; i--) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
     claves.push({
       mes: MESES[d.getMonth()],
@@ -359,4 +414,30 @@ function agruparPedidos(pedidos: any[]) {
     mapa.set(k, a);
   }
   return [...mapa.values()].sort((a, b) => b.gasto - a.gasto || b.unidades - a.unidades);
+}
+
+/** Agrupa por proveedor: el del ítem si el pedido es de varios, si no el del pedido. */
+function agruparProveedor(pedidos: any[]) {
+  const mapa = new Map<
+    string,
+    { clave: string; veces: number; unidades: number; gasto: number }
+  >();
+
+  for (const p of pedidos) {
+    for (const it of p.items_pedido) {
+      const nombre = p.varios_proveedores
+        ? it.proveedores?.nombre
+        : p.proveedores?.nombre;
+      if (!nombre) continue;
+      const a = mapa.get(nombre) ?? { clave: nombre, veces: 0, unidades: 0, gasto: 0 };
+      a.veces += 1;
+      a.unidades += Number(it.cantidad);
+      a.gasto += Number(it.costo_unitario ?? 0) * Number(it.cantidad);
+      mapa.set(nombre, a);
+    }
+  }
+
+  return [...mapa.values()].sort(
+    (a, b) => b.gasto - a.gasto || b.unidades - a.unidades
+  );
 }

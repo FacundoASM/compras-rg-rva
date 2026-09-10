@@ -2,6 +2,7 @@ import { createClient, getPerfilActual } from "@/lib/supabase/server";
 import { resolverPedido, repetirPedido } from "@/app/acciones";
 import AccionConMotivo from "@/app/components/AccionConMotivo";
 import EstadoPedido from "@/app/components/EstadoPedido";
+import Adjuntos from "@/app/components/Adjuntos";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export default async function MisPedidosPage() {
 
   const { data: pedidos } = await supabase
     .from("pedidos")
-    .select("*, items_pedido(*, subcategorias(nombre, categorias(nombre)))")
+    .select("*, items_pedido(*, subcategorias(nombre, categorias(nombre))), adjuntos(*)")
     .eq("solicitante_id", perfil?.id ?? "")
     .order("creado_en", { ascending: false });
 
@@ -110,7 +111,13 @@ export default async function MisPedidosPage() {
               </tbody>
             </table>
 
-            {(p.estado === "pendiente" || p.estado === "aprobado") && (
+            <Adjuntos
+              pedidoId={p.id}
+              adjuntos={p.adjuntos ?? []}
+              puedeSubir={["pendiente", "aprobado"].includes(p.estado)}
+            />
+
+            {p.estado === "pendiente" && (
               <div className="acciones">
                 <AccionConMotivo
                   accion={resolverPedido}
@@ -122,6 +129,13 @@ export default async function MisPedidosPage() {
                   motivoObligatorio={false}
                 />
               </div>
+            )}
+
+            {p.estado === "aprobado" && (
+              <p className="chico tenue" style={{ margin: "14px 0 0" }}>
+                Ya tiene orden de compra emitida. Si hay que darlo de baja,
+                pedíselo a compras o a quien aprueba.
+              </p>
             )}
           </div>
         ))}

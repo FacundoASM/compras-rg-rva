@@ -1,8 +1,14 @@
 import { createClient, getPerfilActual } from "@/lib/supabase/server";
-import { resolverPedido, guardarCostoItem } from "@/app/acciones";
+import {
+  resolverPedido,
+  guardarCostoItem,
+  asignarProveedorItem,
+} from "@/app/acciones";
 import AccionConMotivo from "@/app/components/AccionConMotivo";
 import FiltrosPedidos from "@/app/components/FiltrosPedidos";
 import EstadoPedido from "@/app/components/EstadoPedido";
+import SelectorProveedor from "@/app/components/SelectorProveedor";
+import Adjuntos from "@/app/components/Adjuntos";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -22,15 +28,17 @@ export default async function AprobacionPage({
   const pagina = Math.max(1, Number(searchParams.pagina ?? 1));
   const supabase = createClient();
 
-  const [{ data: areasData }, { data: categorias }] = await Promise.all([
-    supabase.from("areas").select("nombre").order("nombre"),
-    supabase.from("categorias").select("id, nombre").order("nombre"),
-  ]);
+  const [{ data: areasData }, { data: categorias }, { data: proveedores }] =
+    await Promise.all([
+      supabase.from("areas").select("nombre").order("nombre"),
+      supabase.from("categorias").select("id, nombre").order("nombre"),
+      supabase.from("proveedores").select("id, nombre, activo").order("nombre"),
+    ]);
 
   let consulta = supabase
     .from("pedidos")
     .select(
-      "*, perfiles!pedidos_solicitante_id_fkey(nombre), items_pedido(*, subcategorias(nombre, categoria_id, categorias(nombre)))",
+      "*, perfiles!pedidos_solicitante_id_fkey(nombre), proveedores(nombre), items_pedido(*, proveedores(id, nombre), subcategorias(nombre, categoria_id, categorias(nombre))), adjuntos(*)",
       { count: "exact" }
     );
 
@@ -43,20 +51,19 @@ export default async function AprobacionPage({
     consulta = consulta.lt("fecha", hasta.toISOString());
   }
 
-  // Sin filtro de estado, priorizamos lo que requiere acción
   const { data: crudos, count } = await consulta
     .order("creado_en", { ascending: false })
     .range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1);
 
   let pedidos = crudos ?? [];
 
-  // Texto y categoría se filtran acá porque miran los ítems relacionados
   const q = (searchParams.q ?? "").trim().toLowerCase();
   if (q) {
     pedidos = pedidos.filter(
       (p: any) =>
         p.numero.toLowerCase().includes(q) ||
         (p.perfiles?.nombre ?? "").toLowerCase().includes(q) ||
+        (p.proveedores?.nombre ?? "").toLowerCase().includes(q) ||
         p.items_pedido.some((it: any) =>
           it.descripcion.toLowerCase().includes(q)
         )
@@ -90,7 +97,9 @@ export default async function AprobacionPage({
   return (
     <div>
       <h2>Gestión de pedidos</h2>
-      <p className="subtitulo">Aprobá pedidos, marcá entregas y cargá los costos de cada compra.</p>
+      <p className="subtitulo">
+        Aprobá pedidos, asigná proveedores, cargá costos y marcá las entregas.
+      </p>
 
       <FiltrosPedidos
         areas={(areasData ?? []).map((a: any) => a.nombre)}
@@ -158,7 +167,10 @@ export default async function AprobacionPage({
         a + Number(it.costo_unitario ?? 0) * Number(it.cantidad),
       0
     );
-    const cargarCostos = esCompras && p.estado === "aprobado";
+
+    // Compras puede cargar costos y proveedor en cualquier momento antes del cierre
+    const puedeEditarCompra =
+      esCompras && !soloLectura && ["pendiente", "aprobado"].includes(p.estado);
 
     return (
       <div className="card">
@@ -172,6 +184,11 @@ export default async function AprobacionPage({
               {new Date(p.fecha).toLocaleDateString("es-AR")} ·{" "}
               {p.items_pedido.length} ítem(s), {unidades} unidad(es)
               {total > 0 && ` · $${Math.round(total).toLocaleString("es-AR")}`}
+              {p.varios_proveedores
+                ? " · varios proveedores"
+                : p.proveedores?.nombre
+                ? ` · ${p.proveedores.nombre}`
+                : ""}
             </p>
           </div>
           {(p.estado === "aprobado" || p.estado === "entregado") && (
@@ -193,17 +210,26 @@ export default async function AprobacionPage({
           </div>
         )}
 
+        {puedeEditarCompra && (
+          <SelectorProveedor pedido={p} proveedores={proveedores ?? []} />
+        )}
+
         <table>
           <thead>
             <tr>
               <th style={{ width: 28 }}>#</th>
               <th>Descripción</th>
-              <th style={{ width: "20%" }}>Categoría</th>
-              <th style={{ width: 58, textAlign: "right" }}>Cant.</th>
-              <th style={{ width: "18%" }}>Observaciones</th>
-              {(cargarCostos || total > 0) && (
-                <th style={{ width: cargarCostos ? 250 : 130 }}>
-                  Costo y proveedor
+              <th style={{ width: "18%" }}>Categoría</th>
+              <th className="der" style={{ width: 58 }}>Cant.</th>
+              <th style={{ width: "16%" }}>Observaciones</th>
+              {(puedeEditarCompra || total > 0) && (
+                <th style={{ width: puedeEditarCompra ? 230 : 120 }}>
+                  Costo unitario
+                </th>
+              )}
+              {p.varios_proveedores && (
+                <th style={{ width: puedeEditarCompra ? 200 : 130 }}>
+                  Proveedor
                 </th>
               )}
             </tr>
@@ -222,7 +248,8 @@ export default async function AprobacionPage({
                 <td data-col="Observaciones" className="tenue">
                   {it.observaciones || "—"}
                 </td>
-                {cargarCostos ? (
+
+                {puedeEditarCompra ? (
                   <td data-col="Costo">
                     <form action={guardarCostoItem} className="form-costo">
                       <input type="hidden" name="item_id" value={it.id} />
@@ -231,13 +258,8 @@ export default async function AprobacionPage({
                         type="number"
                         step="0.01"
                         min="0"
-                        placeholder="$ unit."
+                        placeholder="$ unitario"
                         defaultValue={it.costo_unitario ?? ""}
-                      />
-                      <input
-                        name="proveedor"
-                        placeholder="Proveedor"
-                        defaultValue={it.proveedor ?? ""}
                       />
                       <button className="secondary">Guardar</button>
                     </form>
@@ -247,20 +269,47 @@ export default async function AprobacionPage({
                     {it.costo_unitario
                       ? `$${Number(it.costo_unitario).toLocaleString("es-AR")}`
                       : "—"}
-                    {it.proveedor && (
-                      <>
-                        <br />
-                        <span className="tenue">
-                          {it.proveedor}
-                        </span>
-                      </>
-                    )}
                   </td>
                 ) : null}
+
+                {p.varios_proveedores &&
+                  (puedeEditarCompra ? (
+                    <td data-col="Proveedor">
+                      <form action={asignarProveedorItem} className="form-costo">
+                        <input type="hidden" name="item_id" value={it.id} />
+                        <select
+                          name="proveedor_id"
+                          defaultValue={it.proveedor_id ?? ""}
+                        >
+                          <option value="">Sin asignar</option>
+                          {(proveedores ?? [])
+                            .filter(
+                              (pr: any) => pr.activo || pr.id === it.proveedor_id
+                            )
+                            .map((pr: any) => (
+                              <option key={pr.id} value={pr.id}>
+                                {pr.nombre}
+                              </option>
+                            ))}
+                        </select>
+                        <button className="secondary">OK</button>
+                      </form>
+                    </td>
+                  ) : (
+                    <td data-col="Proveedor" className="chico">
+                      {it.proveedores?.nombre ?? "—"}
+                    </td>
+                  ))}
               </tr>
             ))}
           </tbody>
         </table>
+
+        <Adjuntos
+          pedidoId={p.id}
+          adjuntos={p.adjuntos ?? []}
+          puedeSubir={!soloLectura && (esCompras || esAprobador)}
+        />
 
         {!soloLectura && (
           <div className="acciones">
