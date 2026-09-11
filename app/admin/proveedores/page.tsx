@@ -71,7 +71,7 @@ async function alternarActivo(formData: FormData) {
 export default async function ProveedoresPage() {
   const perfil = await getPerfilActual();
   if (!["compras", "aprobador", "superusuario"].includes(perfil?.rol ?? "")) {
-    redirect("/mis-pedidos");
+    redirect("/");
   }
 
   const supabase = createClient();

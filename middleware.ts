@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && esPublica) {
-    const redir = NextResponse.redirect(new URL("/mis-pedidos", request.url));
+    const redir = NextResponse.redirect(new URL("/", request.url));
     response.cookies.getAll().forEach((c) => redir.cookies.set(c));
     return redir;
   }

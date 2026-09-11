@@ -10,6 +10,7 @@ import EstadoPedido from "@/app/components/EstadoPedido";
 import SelectorProveedor from "@/app/components/SelectorProveedor";
 import Adjuntos from "@/app/components/Adjuntos";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,10 @@ export default async function AprobacionPage({
   searchParams: Record<string, string | undefined>;
 }) {
   const perfil = await getPerfilActual();
+  if (!["aprobador", "compras", "superusuario"].includes(perfil?.rol ?? "")) {
+    redirect("/");
+  }
+
   const esAprobador =
     perfil?.rol === "aprobador" || perfil?.rol === "superusuario";
   const esCompras = perfil?.rol === "compras" || perfil?.rol === "superusuario";

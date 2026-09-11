@@ -11,6 +11,8 @@ export default async function EditarPedidoPage({
   params: { id: string };
 }) {
   const perfil = await getPerfilActual();
+  if (perfil?.rol === "externo") redirect("/ordenes");
+
   const supabase = createClient();
 
   const { data: pedido } = await supabase

@@ -4,11 +4,14 @@ import AccionConMotivo from "@/app/components/AccionConMotivo";
 import EstadoPedido from "@/app/components/EstadoPedido";
 import Adjuntos from "@/app/components/Adjuntos";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function MisPedidosPage() {
   const perfil = await getPerfilActual();
+  if (perfil?.rol === "externo") redirect("/ordenes");
+
   const supabase = createClient();
 
   const { data: pedidos } = await supabase

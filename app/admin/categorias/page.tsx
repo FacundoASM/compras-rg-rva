@@ -43,7 +43,7 @@ async function fusionarSubcategoria(formData: FormData) {
 
 export default async function CategoriasPage() {
   const perfil = await getPerfilActual();
-  if (perfil?.rol !== "superusuario") redirect("/mis-pedidos");
+  if (perfil?.rol !== "superusuario") redirect("/");
 
   const supabase = createClient();
   const { data: categorias } = await supabase

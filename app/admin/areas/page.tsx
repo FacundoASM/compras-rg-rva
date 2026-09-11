@@ -44,7 +44,7 @@ async function eliminarArea(formData: FormData) {
 
 export default async function AreasPage() {
   const perfil = await getPerfilActual();
-  if (perfil?.rol !== "superusuario") redirect("/mis-pedidos");
+  if (perfil?.rol !== "superusuario") redirect("/");
 
   const supabase = createClient();
   const [{ data: areas }, { data: perfiles }] = await Promise.all([

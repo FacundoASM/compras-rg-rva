@@ -21,7 +21,7 @@ async function actualizarPerfil(formData: FormData) {
 
 export default async function AdminPerfilesPage() {
   const yo = await getPerfilActual();
-  if (yo?.rol !== "superusuario") redirect("/mis-pedidos");
+  if (yo?.rol !== "superusuario") redirect("/");
 
   const supabase = createClient();
   const [{ data: perfiles }, { data: areas }] = await Promise.all([

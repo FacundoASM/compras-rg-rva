@@ -11,7 +11,7 @@ export default async function DashboardPage({
 }) {
   const perfil = await getPerfilActual();
   if (!["aprobador", "compras", "superusuario"].includes(perfil?.rol ?? "")) {
-    redirect("/mis-pedidos");
+    redirect("/");
   }
 
   const supabase = createClient();
