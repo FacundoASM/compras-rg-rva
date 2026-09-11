@@ -24,7 +24,7 @@ export default async function OCPage({ params }: { params: { id: string } }) {
     );
   }
 
-  if (!["aprobado", "entregado"].includes(pedido.estado)) {
+  if (!["aprobado", "comprado", "entregado"].includes(pedido.estado)) {
     return (
       <div className="card">
         <p className="vacio">

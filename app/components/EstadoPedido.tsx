@@ -1,8 +1,9 @@
-const PASOS = ["pendiente", "aprobado", "entregado"] as const;
+const PASOS = ["pendiente", "aprobado", "comprado", "entregado"] as const;
 
 const ETIQUETAS: Record<string, string> = {
   pendiente: "Pendiente",
   aprobado: "Aprobado",
+  comprado: "Comprado",
   entregado: "Entregado",
   rechazado: "Rechazado",
   cancelado: "Cancelado",

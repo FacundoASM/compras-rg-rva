@@ -290,6 +290,7 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .badge.pendiente { background: var(--pend-bg); color: var(--pend-tx); }
 .badge.aprobado { background: var(--info-bg); color: var(--info-tx); }
+.badge.comprado { background: #e7ecfa; color: #2b3e7c; }
 .badge.entregado { background: var(--ok-bg); color: var(--ok-tx); }
 .badge.rechazado { background: var(--mal-bg); color: var(--mal-tx); }
 .badge.cancelado { background: var(--neutro-bg); color: var(--neutro-tx); }

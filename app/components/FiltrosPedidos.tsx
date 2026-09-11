@@ -56,6 +56,7 @@ export default function FiltrosPedidos({
             <option value="">Todos</option>
             <option value="pendiente">Pendiente</option>
             <option value="aprobado">Aprobado</option>
+            <option value="comprado">Comprado</option>
             <option value="entregado">Entregado</option>
             <option value="rechazado">Rechazado</option>
             <option value="cancelado">Cancelado</option>

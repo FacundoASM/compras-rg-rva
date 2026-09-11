@@ -28,19 +28,29 @@ export default async function RootLayout({
     perfil?.rol === "aprobador" ||
     perfil?.rol === "compras" ||
     perfil?.rol === "superusuario";
+  const esExterno = perfil?.rol === "externo";
 
+  // Cuántos pedidos esperan una acción de esta persona
   let pendientes = 0;
-  if (gestiona) {
+  if (gestiona || esExterno) {
     const supabase = createClient();
-    const estado = perfil?.rol === "compras" ? "aprobado" : "pendiente";
+    const estados =
+      perfil?.rol === "compras"
+        ? ["aprobado", "comprado"]   // comprar o marcar la entrega
+        : esExterno
+        ? ["aprobado"]               // comprar
+        : ["pendiente"];             // aprobar
     const { count } = await supabase
       .from("pedidos")
       .select("id", { count: "exact", head: true })
-      .eq("estado", estado);
+      .in("estado", estados);
     pendientes = count ?? 0;
   }
 
-  const enlaces = [
+  // El externo tiene una sola pantalla: no carga pedidos ni ve lo interno
+  const enlaces = esExterno
+    ? [{ href: "/ordenes", texto: "Órdenes", contador: pendientes }]
+    : [
     { href: "/pedidos/nuevo", texto: "Nuevo pedido" },
     { href: "/mis-pedidos", texto: "Mis pedidos" },
     ...(gestiona

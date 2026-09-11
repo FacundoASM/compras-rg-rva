@@ -10,6 +10,7 @@ function revalidarTodo() {
   revalidatePath("/mis-pedidos");
   revalidatePath("/aprobacion");
   revalidatePath("/dashboard");
+  revalidatePath("/ordenes");
   revalidatePath("/", "layout");
 }
 
@@ -17,6 +18,7 @@ const TEXTO_ESTADO: Record<string, string> = {
   aprobado: "aprobado",
   rechazado: "rechazado",
   cancelado: "cancelado",
+  comprado: "marcado como comprado",
   entregado: "marcado como entregado",
 };
 
@@ -26,6 +28,7 @@ export async function resolverPedido(formData: FormData) {
     | "aprobado"
     | "rechazado"
     | "cancelado"
+    | "comprado"
     | "entregado";
   const motivo = (formData.get("motivo") as string) || null;
 
@@ -33,14 +36,16 @@ export async function resolverPedido(formData: FormData) {
   const { data: auth } = await supabase.auth.getUser();
   const ahora = new Date().toISOString();
 
-  const cambios: Record<string, unknown> = {
-    estado: decision,
-    motivo_resolucion: motivo,
-  };
+  const cambios: Record<string, unknown> = { estado: decision };
+  if (motivo !== null) cambios.motivo_resolucion = motivo;
 
   if (decision === "aprobado" || decision === "rechazado") {
     cambios.aprobado_por = auth.user!.id;
     cambios.fecha_aprobacion = ahora;
+  }
+  if (decision === "comprado") {
+    cambios.comprado_por = auth.user!.id;
+    cambios.fecha_compra = ahora;
   }
   if (decision === "entregado") {
     cambios.entregado_por = auth.user!.id;

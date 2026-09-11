@@ -63,6 +63,7 @@ export default async function DashboardPage({
 
   const pendientes = todos.filter((p: any) => p.estado === "pendiente").length;
   const aprobados = todos.filter((p: any) => p.estado === "aprobado").length;
+  const comprados = todos.filter((p: any) => p.estado === "comprado").length;
   const entregados = todos.filter((p: any) => p.estado === "entregado").length;
   const gastoTotal = vigentes.reduce((a, p) => a + totalPedido(p), 0);
 
@@ -112,7 +113,8 @@ export default async function DashboardPage({
 
       <div className="metricas">
         <Metrica etiqueta="Por aprobar" valor={pendientes} />
-        <Metrica etiqueta="Sin entregar" valor={aprobados} />
+        <Metrica etiqueta="Por comprar" valor={aprobados} />
+        <Metrica etiqueta="Comprados" valor={comprados} />
         <Metrica etiqueta="Entregados" valor={entregados} />
         <Metrica
           etiqueta="Gasto registrado"

@@ -87,12 +87,9 @@ export default async function AprobacionPage({
       searchParams.hasta
   );
 
-  const activos = pedidos.filter((p: any) =>
-    ["pendiente", "aprobado"].includes(p.estado)
-  );
-  const cerrados = pedidos.filter(
-    (p: any) => !["pendiente", "aprobado"].includes(p.estado)
-  );
+  const EN_CURSO = ["pendiente", "aprobado", "comprado"];
+  const activos = pedidos.filter((p: any) => EN_CURSO.includes(p.estado));
+  const cerrados = pedidos.filter((p: any) => !EN_CURSO.includes(p.estado));
 
   return (
     <div>
@@ -170,7 +167,9 @@ export default async function AprobacionPage({
 
     // Compras puede cargar costos y proveedor en cualquier momento antes del cierre
     const puedeEditarCompra =
-      esCompras && !soloLectura && ["pendiente", "aprobado"].includes(p.estado);
+      esCompras &&
+      !soloLectura &&
+      ["pendiente", "aprobado", "comprado"].includes(p.estado);
 
     return (
       <div className="card">
@@ -191,7 +190,7 @@ export default async function AprobacionPage({
                 : ""}
             </p>
           </div>
-          {(p.estado === "aprobado" || p.estado === "entregado") && (
+          {["aprobado", "comprado", "entregado"].includes(p.estado) && (
             <Link href={`/oc/${p.id}`}>Ver orden de compra</Link>
           )}
         </div>
@@ -332,6 +331,14 @@ export default async function AprobacionPage({
             )}
 
             {p.estado === "aprobado" && esCompras && (
+              <form action={resolverPedido}>
+                <input type="hidden" name="id" value={p.id} />
+                <input type="hidden" name="decision" value="comprado" />
+                <button className="aprobar">Marcar comprado</button>
+              </form>
+            )}
+
+            {p.estado === "comprado" && esCompras && (
               <form action={resolverPedido}>
                 <input type="hidden" name="id" value={p.id} />
                 <input type="hidden" name="decision" value="entregado" />

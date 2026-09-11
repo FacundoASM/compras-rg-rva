@@ -63,6 +63,7 @@ export default async function AdminPerfilesPage() {
                 <label>Rol</label>
                 <select name="rol" defaultValue={p.rol}>
                   <option value="solicitante">Solicitante</option>
+                  <option value="externo">Externo (gestor de compras)</option>
                   <option value="compras">Compras</option>
                   <option value="aprobador">Aprobador</option>
                   <option value="superusuario">Superusuario</option>

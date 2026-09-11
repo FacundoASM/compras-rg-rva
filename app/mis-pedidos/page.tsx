@@ -59,7 +59,7 @@ export default async function MisPedidosPage() {
                 {p.estado === "pendiente" && (
                   <Link href={`/pedidos/${p.id}/editar`}>Editar</Link>
                 )}
-                {(p.estado === "aprobado" || p.estado === "entregado") && (
+                {["aprobado", "comprado", "entregado"].includes(p.estado) && (
                   <Link href={`/oc/${p.id}`}>Ver OC</Link>
                 )}
                 <form action={repetirPedido}>
@@ -114,7 +114,7 @@ export default async function MisPedidosPage() {
             <Adjuntos
               pedidoId={p.id}
               adjuntos={p.adjuntos ?? []}
-              puedeSubir={["pendiente", "aprobado"].includes(p.estado)}
+              puedeSubir={["pendiente", "aprobado", "comprado"].includes(p.estado)}
             />
 
             {p.estado === "pendiente" && (
@@ -131,7 +131,7 @@ export default async function MisPedidosPage() {
               </div>
             )}
 
-            {p.estado === "aprobado" && (
+            {["aprobado", "comprado"].includes(p.estado) && (
               <p className="chico tenue" style={{ margin: "14px 0 0" }}>
                 Ya tiene orden de compra emitida. Si hay que darlo de baja,
                 pedíselo a compras o a quien aprueba.
