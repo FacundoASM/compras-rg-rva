@@ -305,6 +305,12 @@ export async function registrarAdjunto(datos: {
   const perfil = await getPerfilActual();
   if (!perfil) return { error: "Sesión vencida" };
 
+  // La ruta la propone el navegador: se exige que apunte a la carpeta del
+  // pedido, para que nadie registre como propio un archivo de otro.
+  if (!datos.ruta.startsWith(`${datos.pedidoId}/`)) {
+    return { error: "Ruta de archivo inválida" };
+  }
+
   const supabase = createClient();
   const { error } = await supabase.from("adjuntos").insert({
     pedido_id: datos.pedidoId,
@@ -340,6 +346,19 @@ export async function eliminarAdjunto(formData: FormData) {
 /** Devuelve un enlace temporal para descargar un adjunto (vale 60 segundos). */
 export async function enlaceAdjunto(ruta: string) {
   const supabase = createClient();
+
+  // Esta acción se puede invocar desde el navegador con cualquier ruta, así que
+  // primero se comprueba que corresponda a un adjunto que esta persona puede
+  // ver. La consulta pasa por las políticas de la base: si no le corresponde,
+  // no devuelve nada.
+  const { data: adjunto } = await supabase
+    .from("adjuntos")
+    .select("id")
+    .eq("ruta", ruta)
+    .maybeSingle();
+
+  if (!adjunto) return { error: "No tenés acceso a este archivo" };
+
   const { data, error } = await supabase.storage
     .from("adjuntos")
     .createSignedUrl(ruta, 60);
